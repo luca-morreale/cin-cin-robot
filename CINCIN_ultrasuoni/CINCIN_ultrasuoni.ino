@@ -59,7 +59,7 @@ void loop() {
   totalDistance_middle += distance_middle;
   appendDistance(distance_middle,distances_middle);
 
-  if ((isTooFar(distances_right)) || (isTooFar(distances_left)) || (isTooFar(distances_middle))) {
+  /*if ((isTooFar(distances_right)) || (isTooFar(distances_left)) || (isTooFar(distances_middle))) {
     clearTotal(&totalDistance_right);
     clearDistances(distances_right);
     
@@ -69,11 +69,11 @@ void loop() {
     clearTotal(&totalDistance_middle);
     clearDistances(distances_middle);
     
-  } else {
+  } else {*/
     performBehavior(averageDistance(totalDistance_right));
     performBehavior(averageDistance(totalDistance_left));
     performBehavior(averageDistance(totalDistance_middle));
-  }
+  //}
   
 }
 
@@ -115,16 +115,6 @@ float getDistanceFromEnd(int position,float *distances)
 
 void performBehavior(float avgDistance)
 {
-//  if (avgDistance < LOW_DISTANCE) {
-//    digitalWrite(LED_PIN, HIGH) ;
-//  } else if (avgDistance > LOW_DISTANCE && avgDistance < FAR_DISTANCE) {
-//    digitalWrite(LED_PIN,HIGH);
-//    delay(DELAY_LED_BLINKING);
-//    digitalWrite(LED_PIN,LOW);
-//    delay(DELAY_LED_BLINKING);
-//  } else {  // if (avgDistance > FAR_DISTANCE) 
-//    digitalWrite(LED_PIN,LOW);
-// }
  debugDistance(avgDistance);
 }
 
