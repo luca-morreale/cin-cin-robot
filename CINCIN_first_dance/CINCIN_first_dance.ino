@@ -11,7 +11,7 @@
 
 #define LATERAL_MOTOR_PIN 10
 #define ROTATION_MOTOR_PIN 9
-#define SIGNAL_PIN 8
+#define SIGNAL_PIN 6
 
 #define LOW_DISTANCE 20
 #define FAR_DISTANCE 60
