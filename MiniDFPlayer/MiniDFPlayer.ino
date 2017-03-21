@@ -1,3 +1,4 @@
+// IMPORTANTE: PER IL CABLAGGIO, TX VA CON RX E VICEVERSA
 
 #include <SoftwareSerial.h>
 #include <DFPlayer_Mini_Mp3.h>
@@ -13,9 +14,8 @@ void loop () {
  mp3_play (1); //play 0001.mp3
  delay (30000); //30 sec, time delay to allow 0001.mp3 to finish playing
 
- mp3_play (2); //play 0002.mp3
- delay (20000); 
-
- mp3_pause (); //pause the mp3
+ mp3_play (1); //play 0001.mp3
+ delay(3000);
+// mp3_pause (); //pause the mp3
 
 }

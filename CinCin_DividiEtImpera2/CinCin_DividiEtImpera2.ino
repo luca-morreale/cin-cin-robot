@@ -1,7 +1,9 @@
 // IMPORTANTISSIMO: I SONAR VANNO ALIMENTATI A PARTE (5 V)
 
-
+#include <NewPing.h>
 #include <Servo.h>
+#include <SoftwareSerial.h>
+#include <DFPlayer_Mini_Mp3.h>
 
 #define LEFT_PIN 9
 #define RIGHT_PIN 10
@@ -20,31 +22,26 @@
 #define RARM_HIGH_POSITION 0
 #define RARM_LOW_POSITION 90
 
-#define tempo 7
-
 #define DEBUG 1
 
-#define BOUD_RATE 9600
-#define SIGNAL_PIN_RIGHT 4
-#define SIGNAL_PIN_LEFT 5
-#define SIGNAL_PIN_MIDDLE 6
-#define NUM_READINGS 1
+#define TRIGPINLEFT 2
+#define ECHOPINLEFT 3
+#define TRIGPINMIDDLE 4
+#define ECHOPINMIDDLE 5
+#define TRIGPINRIGHT 6
+#define ECHOPINRIGHT 7
+#define MAX_DISTANCE 300
 
-int currentIndex;
-float distances_right[NUM_READINGS];
-float distances_left[NUM_READINGS];
-float distances_middle[NUM_READINGS];
-float totalDistance_right;
-float totalDistance_left;
-float totalDistance_middle;
-float distance_right;
-float distance_left;
-float distance_middle;
+#define STOP_DISTANCE 50
 
+long distanceLeft,distanceMiddle,distanceRight;
+NewPing sonarLeft(TRIGPINLEFT, ECHOPINLEFT, MAX_DISTANCE);
+NewPing sonarMiddle(TRIGPINMIDDLE, ECHOPINMIDDLE, MAX_DISTANCE);
+NewPing sonarRight(TRIGPINRIGHT, ECHOPINRIGHT, MAX_DISTANCE);
 Servo leftMotor, rightMotor, bowMotor, rarmMotor;
 
 boolean someone = false; // booleano che indica la presenza o meno dell'utente
-int stopper = 0;
+int stopper = 0; // in futuro forse non servirà, visto che quando viene rilevato qualcuno la funzione dance() ritorna
 
 void setup() {
   
@@ -62,19 +59,12 @@ void setup() {
     rarmMotor.write(LEFT_REST_POSITION);
 
     Serial.begin(9600);
+    mp3_set_serial (Serial); //set Serial for DFPlayer-mini mp3 module 
+    mp3_set_volume (30); //max volume is 30 (not really sure)
 
-    currentIndex = 0;
-    clearTotal(&totalDistance_right);
-    clearTotal(&totalDistance_left);
-    clearTotal(&totalDistance_middle);
-  
-    clearDistances(distances_right);
-    clearDistances(distances_left);
-    clearDistances(distances_middle);
-
-    for(int i=0;i<NUM_READINGS;i++)
-      updateDistances();
-    stopper = 0;
+    distanceLeft = 0;
+    distanceMiddle = 0;
+    distanceRight = 0;
 }
 
 void loop() {
@@ -92,34 +82,46 @@ void cin_cin_dance(){
   // Funzione che fa ballare Cin Cin con musica cinese di sottofondo
   // Mentre balla rileva se passa qualcuno entro 2 metri c.a.
   // Quando rileva qualcuno si fermano i motori, la musica e la funzione ritorna dopo aver settato il flag someone a TRUE 
+
+  mp3_play (1); //play 0001.mp3
+
+  //mp3_pause ();
   
   if(!stopper){
     //for(int i=LEFT_REST_POSITION;i>LEFT_STRETCHED_POSITION;i--){
       leftMotor.write(LEFT_STRETCHED_POSITION);
-      for(int i=0;i<15;i++)
+      for(int i=0;i<30;i++)
         updateDistances();
+      if(distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE)
+        stopper = 1;
     //}
  
     //for(int i=LEFT_STRETCHED_POSITION;i<LEFT_REST_POSITION;i++){
       leftMotor.write(LEFT_REST_POSITION);
-      for(int i=0;i<15;i++)
+      for(int i=0;i<30;i++)
         updateDistances();
+      if(distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE)
+        stopper = 1;
     //}
   }
 
   if(!stopper){
     //for(int i=RIGHT_REST_POSITION;i>RIGHT_STRETCHED_POSITION;i--){
       rightMotor.write(RIGHT_STRETCHED_POSITION);
-      for(int i=0;i<15;i++)
+      for(int i=0;i<30;i++)
         updateDistances();
+      if(distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE)
+        stopper = 1;
       //rarmMotor.write(i/2.5);
       
     //}
     
     //for(int i=RIGHT_STRETCHED_POSITION;i<RIGHT_REST_POSITION;i++){
       rightMotor.write(RIGHT_REST_POSITION);
-      for(int i=0;i<15;i++)
+      for(int i=0;i<30;i++)
         updateDistances();
+      if(distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE)
+        stopper = 1;
       //rarmMotor.write(i/2.5);
        
     //}
@@ -173,117 +175,33 @@ void selfie_rotation(){
   
 }
 
-float averageDistance(float totalDistance)
-{
-  return totalDistance / NUM_READINGS;
-}
-
-void removeFirstDistance(float *totalDistance, float *distances)
-{
-  *totalDistance -= distances[0];
-}
-
-void shiftDistances(float *distances)
-{
-  for (int i=0; i < NUM_READINGS-1; i++) {
-    distances[i] = distances[i + 1];
-  }
-  distances[NUM_READINGS - 1] = 0;
-}
-
-void appendDistance(float distance,float *distances)
-{
-  distances[currentIndex++] = distance;
-  if (currentIndex >= NUM_READINGS) {
-    currentIndex = NUM_READINGS - 1;
-  }
-}
-
-int isTooFar(float *distances)
-{
-  return getDistanceFromEnd(0,distances) == 0 && getDistanceFromEnd(1,distances) == 0;
-}
-
-float getDistanceFromEnd(int position,float *distances)
-{
-  return (currentIndex-position > 0)? distances[currentIndex-position] : 0;
-}
-
-void debugDistance(float avgDistance)
+void debugDistance(long distance, char c)
 {
   if (DEBUG) {
-    Serial.println(avgDistance);
+    Serial.print(c);
+    Serial.print(": ");
+    Serial.println(distance);
     Serial.println("");
-  }
-}
-
-float getDistance(int pin)
-{
-  // durata dell'impulso
-  float pulseTime;
-  float distanza;
-
-  pinMode(pin, OUTPUT);
-  digitalWrite(pin, LOW);      // viene posto a LOW pin
-  delayMicroseconds(2);              // per 2 microsecondi
-  digitalWrite(pin, HIGH);     // invia un impulso di trigger
-  delayMicroseconds(10);             // di 10 microsecondi
-  digitalWrite(pin, LOW);      // pone il pin al LOW in attesa che l'impulso torni indietro
-
-  pinMode(pin, INPUT);
-  pulseTime = pulseIn(pin, HIGH); // legge l'eco dell'impulso emesso in microsecondi
-  return pulseTime / 58;            // divide la durata per 58 per ottenere la distanza in cm
-}
-
-void clearTotal(float *totalDistance)
-{
- *totalDistance = 0;
-}
-
-void clearDistances(float *distances)
-{
-  for (int i=0; i<NUM_READINGS; i++) {
-    distances[i] = 0;
   }
 }
 
 void updateDistances(){
 
-  distance_right = getDistance(SIGNAL_PIN_RIGHT);
-  if(distance_right == 0.0)
-    distance_right = 3000;
+  distanceRight = sonarRight.ping_cm();
+  if(distanceRight == 0)
+    distanceRight = MAX_DISTANCE;
+
+  distanceMiddle = sonarMiddle.ping_cm();
+  if(distanceMiddle == 0.0)
+    distanceMiddle = MAX_DISTANCE;
     
-  distance_left = getDistance(SIGNAL_PIN_LEFT);
-  if(distance_left == 0.0)
-    distance_left = 3000;
+  distanceLeft = sonarLeft.ping_cm();
+  if(distanceLeft == 0.0)
+    distanceLeft = MAX_DISTANCE;
     
-  distance_middle = getDistance(SIGNAL_PIN_MIDDLE);
-  if(distance_middle == 0.0)
-    distance_middle = 3000;
-
-  removeFirstDistance(&totalDistance_right,distances_right);
-  removeFirstDistance(&totalDistance_left,distances_left);
-  removeFirstDistance(&totalDistance_middle,distances_middle);
-  
-  shiftDistances(distances_right);
-  shiftDistances(distances_left);
-  shiftDistances(distances_middle);
-
-  totalDistance_right += distance_right;
-  appendDistance(distance_right,distances_right);
-  
-  totalDistance_left += distance_left;
-  appendDistance(distance_left,distances_left);
-  
-  totalDistance_middle += distance_middle;
-  appendDistance(distance_middle,distances_middle);
-
-  debugDistance(averageDistance(totalDistance_right));
-  debugDistance(averageDistance(totalDistance_left));
-  debugDistance(averageDistance(totalDistance_middle));
-  
-  if(averageDistance(totalDistance_right) < 50 || averageDistance(totalDistance_middle) < 50 || averageDistance(totalDistance_left) < 50)
-        stopper = 1;
+  debugDistance(distanceRight,'R');
+  debugDistance(distanceMiddle,'M');
+  debugDistance(distanceLeft,'L');
   
 }
 
