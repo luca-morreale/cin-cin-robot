@@ -1,52 +1,93 @@
-// IMPORTANTISSIMO: I SONAR VANNO ALIMENTATI A PARTE (5 V)
-// Trigger -> Grigio 
-// Echo -> Viola
-// Gnd -> Verde
-// Vcc -> Blu
+/* IMPORTANTISSIMO: I SONAR VANNO ALIMENTATI A PARTE (5 V)
+   Trigger -> Grigio 
+   Echo -> Viola
+   Gnd -> Verde
+   Vcc -> Blu
+*/
 
+// ---- LIBRARIES ----
 #include <NewPing.h>
 #include <Servo.h>
 #include <SoftwareSerial.h>
 #include <DFPlayer_Mini_Mp3.h>
 
+
+// ---- MOTOR PINS ----
 #define LEFT_PIN 9
 #define RIGHT_PIN 10
 #define BOW_PIN 11
 #define RIGHT_ARM 12
 
+
+// ---- MOTOR INITIAL & FINAL POSITIONS ----
 #define LEFT_STRETCHED_POSITION 30
 #define LEFT_REST_POSITION 180
-
 #define RIGHT_STRETCHED_POSITION 30
 #define RIGHT_REST_POSITION 180
-
 #define BOW_STRETCHED_POSITION 160
 #define BOW_REST_POSITION 90
-
 #define RARM_HIGH_POSITION 0
 #define RARM_LOW_POSITION 90
 
+
+// ---- SONAR DISTANCES DEBUGGING ----
 #define DEBUG 1
 
+
+// ---- SONAR PINS ----
 #define TRIGPINLEFT 2
 #define ECHOPINLEFT 3
 #define TRIGPINMIDDLE 4
 #define ECHOPINMIDDLE 5
 #define TRIGPINRIGHT 6
 #define ECHOPINRIGHT 7
+
+
+// ---- MAXIMUM SONAR DISTANCE (CM) ----
 #define MAX_DISTANCE 300
 
+
+// ---- STOPPING DANCE DISTANCE (CM) ----
 #define STOP_DISTANCE 50
 
+
+// ---- FUNCTION PROTOTYPES ----
+void cin_cin_dance(); // Funzione che fa ballare Cin Cin con musica cinese di sottofondo
+
+void cin_cin_engagement(); // Funzione che fa compiere la prima interazione con l'utente
+
+void cin_cin_menu(); // Funzione che fa presentare il ristorante e offrire il menù all'utente
+
+void cin_cin_selfie(); // Funzione che fa scattare un selfie con l'utente ed invia la foto in cassa tramite Wi-Fi
+
+void bow_down(); // Funzione che fa inchinare Cin Cin
+
+void bow_up(); // Funzione che fa rialzare Cin Cin dall'inchino
+
+void selfie_rotation(); // Funzione che alza il braccio e fa ruotare Cin Cin per scattare il selfie
+
+void debugDistance(long distance, char c); // Funzione che permette di stampare a video i valori rilevati dai sonar
+
+void updateDistances(); // Funzione che aggiorna i valori rilevati dai sonar
+
+void is_there_someone(); // Funzione che setta il booleano di presenza utente someone
+
+
+// ---- SONAR INITIALIZATION ---- 
 long distanceLeft, distanceMiddle, distanceRight;
 NewPing sonarLeft(TRIGPINLEFT, ECHOPINLEFT, MAX_DISTANCE);
 NewPing sonarMiddle(TRIGPINMIDDLE, ECHOPINMIDDLE, MAX_DISTANCE);
 NewPing sonarRight(TRIGPINRIGHT, ECHOPINRIGHT, MAX_DISTANCE);
+
+
+// ---- MOTOR INITIALIZATION ----
 Servo leftMotor, rightMotor, bowMotor, rarmMotor;
 
+
+// ---- CONTROL VARIABLES ----
 boolean someone = false; // booleano che indica la presenza o meno dell'utente
-int stopper = 0; // in futuro forse non servirà, visto che quando viene rilevato qualcuno la funzione dance() ritorna
 boolean engagement = 0;
+int stopper = 0; // in futuro forse non servirà, visto che quando viene rilevato qualcuno la funzione dance() ritorna
 
 void setup() {
 
@@ -58,9 +99,10 @@ void setup() {
   bowMotor.attach(BOW_PIN);
   rarmMotor.attach(RIGHT_ARM);
 
-    Serial.begin(9600);
-    mp3_set_serial (Serial); //set Serial for DFPlayer-mini mp3 module 
-    mp3_set_volume (30); //max volume is 30 (not really sure)
+  leftMotor.write(LEFT_REST_POSITION);
+  rightMotor.write(RIGHT_REST_POSITION);
+  bowMotor.write(BOW_REST_POSITION);   
+  rarmMotor.write(LEFT_REST_POSITION);
 
   Serial.begin(9600);
   mp3_set_serial (Serial); //set Serial for DFPlayer-mini mp3 module
@@ -164,7 +206,7 @@ void cin_cin_engagement() {
 
 void cin_cin_menu() {
 
-  // Funzione che fa presentare il ristorante e offrire il menÃ¹ all'utente
+  // Funzione che fa presentare il ristorante e offrire il menù all'utente
   // Cin Cin presenta il ristorante all'utente per poi invitarlo a dare un'occhiata al menÃ¹ facendo un inchino
   // Se l'utente non prende il menÃ¹ allora Cin Cin si rialza e verifica che l'utente sia ancora lÃ¬, ed eventualmente setta il flag someone a FALSE prima di ritornare
   // Se l'utente Ã¨ ancora lÃ¬ riprova ad offrirgli il menÃ¹, se non viene preso nemmeno questa volta la funzione ritorna
@@ -236,16 +278,3 @@ void is_there_someone() {
   // Funzione che setta il booleano di presenza utente someone
 
 }
-
-
-
-
-
-    Serial.begin(9600);
-    mp3_set_serial (Serial); //set Serial for DFPlayer-mini mp3 module 
-    mp3_set_volume (30); //max volume is 30 (not really sure)
-    mp3_stop ();
-  if(!stopper)
-    mp3_play (1); //play 0001.mp3
-  else
-    mp3_stop ();
