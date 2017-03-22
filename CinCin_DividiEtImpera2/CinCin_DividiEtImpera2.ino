@@ -1,4 +1,8 @@
 // IMPORTANTISSIMO: I SONAR VANNO ALIMENTATI A PARTE (5 V)
+// Trigger -> Grigio 
+// Echo -> Viola
+// Gnd -> Verde
+// Vcc -> Blu
 
 #include <NewPing.h>
 #include <Servo.h>
@@ -61,6 +65,7 @@ void setup() {
     Serial.begin(9600);
     mp3_set_serial (Serial); //set Serial for DFPlayer-mini mp3 module 
     mp3_set_volume (30); //max volume is 30 (not really sure)
+    mp3_stop ();
 
     distanceLeft = 0;
     distanceMiddle = 0;
@@ -83,7 +88,10 @@ void cin_cin_dance(){
   // Mentre balla rileva se passa qualcuno entro 2 metri c.a.
   // Quando rileva qualcuno si fermano i motori, la musica e la funzione ritorna dopo aver settato il flag someone a TRUE 
 
-  mp3_play (1); //play 0001.mp3
+  if(!stopper)
+    mp3_play (1); //play 0001.mp3
+  else
+    mp3_stop ();
 
   //mp3_pause ();
   
