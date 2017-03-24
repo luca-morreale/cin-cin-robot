@@ -1,5 +1,5 @@
 /* IMPORTANTISSIMO: I SONAR VANNO ALIMENTATI A PARTE (5 V)
-   Trigger -> Grigio 
+   Trigger -> Grigio
    Echo -> Viola
    Gnd -> Verde
    Vcc -> Blu
@@ -15,8 +15,9 @@
 // ---- MOTOR PINS ----
 #define LEFT_PIN 9
 #define RIGHT_PIN 10
-#define BOW_PIN 11
-#define RIGHT_ARM 12
+#define BOW_PIN 14
+#define RIGHT_ARM 11
+#define ROTATION_PIN 8
 
 
 // ---- MOTOR INITIAL & FINAL POSITIONS ----
@@ -26,8 +27,10 @@
 #define RIGHT_REST_POSITION 180
 #define BOW_STRETCHED_POSITION 160
 #define BOW_REST_POSITION 90
-#define RARM_HIGH_POSITION 0
-#define RARM_LOW_POSITION 90
+#define RARM_STRETCHED_POSITION 70
+#define RARM_REST_POSITION 10
+#define ROTATION_REST_POSITION 10
+#define ROTATION_STRETCHED_POSITION 240
 
 
 // ---- SONAR DISTANCES DEBUGGING ----
@@ -56,6 +59,10 @@
 #define STOP_DISTANCE 50
 
 
+// ---- SOMEONE DISTANCE (CM)
+#define SOMEONE_DISTANCE 30
+
+
 // ---- FUNCTION PROTOTYPES ----
 void cin_cin_dance(); // Funzione che fa ballare Cin Cin con musica cinese di sottofondo
 
@@ -78,7 +85,7 @@ void updateDistances(); // Funzione che aggiorna i valori rilevati dai sonar
 void is_there_someone(); // Funzione che setta il booleano di presenza utente someone
 
 
-// ---- SONAR INITIALIZATION ---- 
+// ---- SONAR INITIALIZATION ----
 long distanceLeft, distanceMiddle, distanceRight;
 NewPing sonarLeft(TRIGPINLEFT, ECHOPINLEFT, MAX_DISTANCE);
 NewPing sonarMiddle(TRIGPINMIDDLE, ECHOPINMIDDLE, MAX_DISTANCE);
@@ -86,7 +93,7 @@ NewPing sonarRight(TRIGPINRIGHT, ECHOPINRIGHT, MAX_DISTANCE);
 
 
 // ---- MOTOR INITIALIZATION ----
-Servo leftMotor, rightMotor, bowMotor, rarmMotor;
+Servo leftMotor, rightMotor, bowMotor, rarmMotor,rotationMotor;
 
 
 // ---- MP3 PLAYER INITIALIZATION ----
@@ -96,7 +103,7 @@ SoftwareSerial mySerial(RXPIN, TXPIN);
 // ---- CONTROL VARIABLES ----
 boolean someone = false; // booleano che indica la presenza o meno dell'utente
 boolean engagement = false;
-boolean mp3_stopper = false; 
+boolean mp3_stopper = false;
 
 void setup() {
 
@@ -107,11 +114,13 @@ void setup() {
   rightMotor.attach(RIGHT_PIN);
   bowMotor.attach(BOW_PIN);
   rarmMotor.attach(RIGHT_ARM);
+  rotationMotor.attach(ROTATION_PIN);
 
   leftMotor.write(LEFT_REST_POSITION);
   rightMotor.write(RIGHT_REST_POSITION);
-  bowMotor.write(BOW_REST_POSITION);   
-  rarmMotor.write(LEFT_REST_POSITION);
+  bowMotor.write(BOW_REST_POSITION);
+  rarmMotor.write(RARM_REST_POSITION);
+  rotationMotor.write(ROTATION_REST_POSITION);
 
   Serial.begin(9600);
   mySerial.begin(9600);
@@ -139,55 +148,62 @@ void cin_cin_dance() {
   // Mentre balla rileva se passa qualcuno entro 2 metri c.a.
   // Quando rileva qualcuno si fermano i motori, la musica e la funzione ritorna dopo aver settato il flag someone a TRUE
 
-   while(true){
-    if(!mp3_stopper){
+  while (true) {
+    if (!mp3_stopper) {
       mp3_play (1); // play 0001.mp3
       mp3_single_loop (true);
       mp3_stopper = true;
+      delay(3000);
     }
-    
+
     leftMotor.write(LEFT_STRETCHED_POSITION);
     for (int i = 0; i < 30; i++)
       updateDistances();
-    if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE){
+    if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE) {
       leftMotor.write(LEFT_REST_POSITION);
       someone = true;
       delay(400);
       mp3_stop ();
+      mp3_stopper = false;
       return;
     }
-    
+
     leftMotor.write(LEFT_REST_POSITION);
     for (int i = 0; i < 30; i++)
       updateDistances();
-    if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE){
+    if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE) {
       someone = true;
       delay(400);
       mp3_stop ();
+      mp3_stopper = false;
       return;
     }
 
     rightMotor.write(RIGHT_STRETCHED_POSITION);
     for (int i = 0; i < 30; i++)
       updateDistances();
-    if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE){
+    if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE) {
       rightMotor.write(RIGHT_REST_POSITION);
       someone = true;
       delay(400);
       mp3_stop ();
+      mp3_stopper = false;
       return;
     }
 
     rightMotor.write(RIGHT_REST_POSITION);
     for (int i = 0; i < 30; i++)
       updateDistances();
-    if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE){
+    if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE) {
       someone = true;
       delay(400);
       mp3_stop ();
+      mp3_stopper = false;
       return;
     }
-   }
+  }
+
+
 }
 
 void cin_cin_engagement() {
@@ -195,20 +211,36 @@ void cin_cin_engagement() {
   // Funzione che fa compiere la prima interazione con l'utente
   // Cin Cin chiama verso di se l'utente e se rileva un avvicinamento si presenta per poi fare un inchino
   // Se l'utente Ã¨ ancora lÃ¬ allora la funzione ritorna, altrimenti viene settato il flag somene a FALSE prima di ritornare
+  mp3_play(2); //"EHI EHI VIENI QUI!!!
+  delay(1500);
+  mp3_play(3); //"EHI EHI VIENI QUI!!!
+  delay(4000);
 
-  for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++)
+  updateDistances();
+  if (distanceRight < SOMEONE_DISTANCE || distanceMiddle < SOMEONE_DISTANCE || distanceLeft < SOMEONE_DISTANCE) {
+    for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++) {
       bowMotor.write(i);
-  delay(1000);
-  for (int i = BOW_STRETCHED_POSITION; i > BOW_REST_POSITION; i--) 
+      delay(7);
+    }
+    delay(1000);
+    for (int i = BOW_STRETCHED_POSITION; i > BOW_REST_POSITION; i--){
       bowMotor.write(i);
-  delay(1000);
+      delay(7);
+  }
+    delay(1000);
+    mp3_play(4); //"(inchino) MOLTO PIACERE DI CONOSCERTI, IO SONO CIN CIN"
+    delay(4000);
+    mp3_play(5); //"(inchino) MOLTO PIACERE DI CONOSCERTI, IO SONO CIN CIN"
+    delay(4000);
   
+
+
   /*if (mp3_stopper == 1 && engagement == 0) {
     mp3_pause ();
-    
+
     //mp3_play(2); "EHI EHI VIENI QUI!!!
     //se la persona si avvicina
-    
+
     for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++) {
       bowMotor.write(i);
     }
@@ -219,9 +251,10 @@ void cin_cin_engagement() {
     delay(1000);
     engagement = 1;
     //mp3_play(3); "(inchino) MOLTO PIACERE DI CONOSCERTI, IO SONO CIN CIN"
-  }*/
+    }*/
 
 
+}
 }
 
 void cin_cin_menu() {
@@ -241,60 +274,79 @@ void cin_cin_selfie() {
   // Se l'utente non preme il cappello allora Cin Cin lo invita nuovamente a schiacciare il cappello non appena Ã¨ pronto
   // Sia che l'utente prema o non prema il cappello, Cin Cin si rimette in posizione normale ed eventualmente setta il flag someone a FALSE prima di ritornare
 
+  //rotazione cin cin a 80°
+  updateDistances();
+  if (distanceRight < SOMEONE_DISTANCE || distanceMiddle < SOMEONE_DISTANCE || distanceLeft < SOMEONE_DISTANCE) {
+    for (int i = ROTATION_REST_POSITION; i < ROTATION_STRETCHED_POSITION; i++) {
+      rotationMotor.write(i);
+    delay(5);
+  }
+  rarmMotor.write(RARM_STRETCHED_POSITION);
+  delay(2000);
+  rarmMotor.write(RARM_REST_POSITION);
+
+    // cin cin torna nella posizione frontale
+    for (int i = ROTATION_STRETCHED_POSITION; i > ROTATION_REST_POSITION; i--){
+      rotationMotor.write(i);
+    delay(5);
 }
+delay(1000);
 
-// -------------- HELPER FUNCTIONS --------------
-
-void bow_down() {
-
-  // Funzione che fa inchinare Cin Cin
-
-}
-
-void bow_up() {
-
-  // Funzione che fa rialzare Cin Cin dall'inchino
-
-}
-
-void selfie_rotation() {
-
-  // Funzione che alza il braccio e fa ruotare Cin Cin per scattare il selfie
-
-}
-
-void debugDistance(long distance, char c)
-{
-  if (DEBUG) {
-    Serial.print(c);
-    Serial.print(": ");
-    Serial.println(distance);
-    Serial.println("");
   }
 }
 
-void updateDistances() {
+  // -------------- HELPER FUNCTIONS --------------
 
-  distanceRight = sonarRight.ping_cm();
-  if (distanceRight == 0)
-    distanceRight = MAX_DISTANCE;
+  void bow_down() {
 
-  distanceMiddle = sonarMiddle.ping_cm();
-  if (distanceMiddle == 0.0)
-    distanceMiddle = MAX_DISTANCE;
+    // Funzione che fa inchinare Cin Cin
 
-  distanceLeft = sonarLeft.ping_cm();
-  if (distanceLeft == 0.0)
-    distanceLeft = MAX_DISTANCE;
+  }
 
-  debugDistance(distanceRight, 'R');
-  debugDistance(distanceMiddle, 'M');
-  debugDistance(distanceLeft, 'L');
+  void bow_up() {
 
-}
+    // Funzione che fa rialzare Cin Cin dall'inchino
 
-void is_there_someone() {
+  }
 
-  // Funzione che setta il booleano di presenza utente someone
+  void selfie_rotation() {
 
-}
+    // Funzione che alza il braccio e fa ruotare Cin Cin per scattare il selfie
+
+  }
+
+  void debugDistance(long distance, char c)
+  {
+    if (DEBUG) {
+      Serial.print(c);
+      Serial.print(": ");
+      Serial.println(distance);
+      Serial.println("");
+    }
+  }
+
+  void updateDistances() {
+
+    distanceRight = sonarRight.ping_cm();
+    if (distanceRight == 0)
+      distanceRight = MAX_DISTANCE;
+
+    distanceMiddle = sonarMiddle.ping_cm();
+    if (distanceMiddle == 0.0)
+      distanceMiddle = MAX_DISTANCE;
+
+    distanceLeft = sonarLeft.ping_cm();
+    if (distanceLeft == 0.0)
+      distanceLeft = MAX_DISTANCE;
+
+    debugDistance(distanceRight, 'R');
+    debugDistance(distanceMiddle, 'M');
+    debugDistance(distanceLeft, 'L');
+
+  }
+
+  void is_there_someone() {
+
+    // Funzione che setta il booleano di presenza utente someone
+
+  }
