@@ -50,6 +50,11 @@
 
 #define MEASUREMENTS_NUMBER 30
 
+// ---- MP3 PLAYER PINS ----
+#define RXPIN 12
+#define TXPIN 13
+
+
 // ---- MAXIMUM SONAR DISTANCE (CM) ----
 #define MAX_DISTANCE 300
 
@@ -70,7 +75,7 @@ Servo leftMotor, rightMotor, bowMotor, rightArmMotor;
 // ---- CONTROL VARIABLES ----
 boolean clientPresence = false; // booleano che indica la presenza o meno dell'utente
 boolean engagement = false;
-boolean stopper = true; // in futuro forse non servirà, visto che quando viene rilevato qualcuno la funzione dance() ritorna
+boolean mp3_stopper = true; // in futuro forse non servirà, visto che quando viene rilevato qualcuno la funzione dance() ritorna
 
 
 
@@ -109,19 +114,21 @@ void debug(char *description, long value);
 void debug(char description, int value);
 void debug(char *description, int value);
 
+// ---- MP3 PLAYER INITIALIZATION ----
+SoftwareSerial mySerial(RXPIN, TXPIN);
 
 
 void setup() 
 {
     // Inizializzazione dei motori e dei vari componenti
     // Settaggio dei pin di OUTPUT ed INPUT
-
     attachServos();
     initServos();
 
     Serial.begin(9600);
-    mp3_set_serial (Serial); //set Serial for DFPlayer-mini mp3 module
-    mp3_set_volume (30); //max volume is 30 (not really sure)
+    mySerial.begin(9600);
+    mp3_set_serial(mySerial); //set Serial for DFPlayer-mini mp3 module
+    mp3_set_volume(20); //max volume is 30
 
     distanceLeft = 0;
     distanceMiddle = 0;
@@ -168,46 +175,52 @@ void dance()
     
     mp3_play (1); //play 0001.mp3
 
-    if (!stopper) {
-        //for(int i=LEFT_REST_POSITION;i>LEFT_STRETCHED_POSITION;i--){
-        leftMotor.write(LEFT_STRETCHED_POSITION);
-        for (int i = 0; i < MEASUREMENTS_NUMBER; i++)
-            updateDistances();
-        if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE){
-            stopper = 1;
-
+    while(true){
+        if(!mp3_stopper){
+          mp3_play (1); // play 0001.mp3
+          mp3_single_loop (true);
+          mp3_stopper = true;
         }
-
-        //for(int i=LEFT_STRETCHED_POSITION;i<LEFT_REST_POSITION;i++){
+        
+        leftMotor.write(LEFT_STRETCHED_POSITION);
+        for (int i = 0; i < 30; i++) {
+            if (thereIsSomeone()) {
+                leftMotor.write(LEFT_REST_POSITION);
+                delay(400);
+                mp3_stop ();
+                return;
+            }
+        }
+        
         leftMotor.write(LEFT_REST_POSITION);
-        for (int i = 0; i < MEASUREMENTS_NUMBER; i++)
-            updateDistances();
-        if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE)
-            stopper = 1;
-        //}
-    }
-
-    if (!stopper) {
-        //for(int i=RIGHT_REST_POSITION;i>RIGHT_STRETCHED_POSITION;i--){
+        for (int i = 0; i < 30; i++) {
+            if (thereIsSomeone()) {
+                delay(400);
+                mp3_stop ();
+                return;
+            }
+            
+        }
+    
         rightMotor.write(RIGHT_STRETCHED_POSITION);
-        for (int i = 0; i < MEASUREMENTS_NUMBER; i++)
-            updateDistances();
-        if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE)
-            stopper = 1;
-        //rightArmMotor.write(i/2.5);
-
-        //}
-
-        //for(int i=RIGHT_STRETCHED_POSITION;i<RIGHT_REST_POSITION;i++){
+        for (int i = 0; i < 30; i++) {
+            if (thereIsSomeone()) {
+                rightMotor.write(RIGHT_REST_POSITION);
+                delay(400);
+                mp3_stop ();
+                return;
+            }
+        }
+        
         rightMotor.write(RIGHT_REST_POSITION);
-        for (int i = 0; i < 30; i++)
-            updateDistances();
-        if (distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE)
-            stopper = 1;
-        //rightArmMotor.write(i/2.5);
-
-        //}
-    }
+        for (int i = 0; i < 30; i++) {
+            if (thereIsSomeone()) {
+                delay(400);
+                mp3_stop ();
+                return;
+            }
+        }
+   }
 
 }
 
@@ -252,8 +265,6 @@ void cin_cin_selfie()
 
 }
 
-// -------------- HELPER FUNCTIONS --------------
-
 void bowMotorDown()
 {
     for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++) {
@@ -268,7 +279,6 @@ void bowMotorUp()
         bowMotor.write(i);
     }
     delay(BOW_UP_DELAY);
-
 }
 
 void selfie_rotation() 
