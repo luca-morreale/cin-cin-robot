@@ -174,6 +174,7 @@ void cin_cin_dance() {
       }
     }
 
+   // int k = RIGHT_REST_POSITION-80;
     for (int i = LEFT_STRETCHED_POSITION; i < LEFT_REST_POSITION; i++)
     {
       leftMotor.write(i);
@@ -188,6 +189,11 @@ void cin_cin_dance() {
           return;
         }
       }
+      
+     /* if(LEFT_REST_POSITION-i < 120){ 
+      rightMotor.write(k); 
+      k=k--;
+     }*/
     }
 
     for (int i = RIGHT_REST_POSITION; i >= RIGHT_STRETCHED_POSITION; i--)
@@ -206,6 +212,7 @@ void cin_cin_dance() {
       }
     }
 
+   
     for (int i = RIGHT_STRETCHED_POSITION; i < RIGHT_REST_POSITION; i++)
     {
       rightMotor.write(i);
@@ -242,13 +249,13 @@ void cin_cin_engagement() {
   while (i < 5 && !engagement) {
     updateDistances();
     if (distanceRight < SOMEONE_DISTANCE || distanceMiddle < SOMEONE_DISTANCE || distanceLeft < SOMEONE_DISTANCE) {
-      for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++) {
-        bowMotor.write(i);
+      for (int k = BOW_REST_POSITION; k < BOW_STRETCHED_POSITION; k++) {
+        bowMotor.write(k);
         delay(7);
       }
       delay(1000);
-      for (int i = BOW_STRETCHED_POSITION; i > BOW_REST_POSITION; i--) {
-        bowMotor.write(i);
+      for (int k = BOW_STRETCHED_POSITION; k > BOW_REST_POSITION; k--) {
+        bowMotor.write(k);
         delay(7);
       }
       delay(1000);
@@ -298,11 +305,14 @@ void cin_cin_selfie() {
   // Se l'utente non preme il cappello allora Cin Cin lo invita nuovamente a schiacciare il cappello non appena Ã¨ pronto
   // Sia che l'utente prema o non prema il cappello, Cin Cin si rimette in posizione normale ed eventualmente setta il flag someone a FALSE prima di ritornare
 
-  //rotazione cin cin a 80°
-  updateDistances();
-  if (distanceRight < SOMEONE_DISTANCE || distanceMiddle < SOMEONE_DISTANCE || distanceLeft < SOMEONE_DISTANCE) {
-    for (int i = ROTATION_REST_POSITION; i < ROTATION_STRETCHED_POSITION; i++) {
-      rotationMotor.write(i);
+  engagement = false;
+
+  int i = 0;
+  while (i < 5 && !engagement) {
+    updateDistances();
+    if (distanceRight < SOMEONE_DISTANCE || distanceMiddle < SOMEONE_DISTANCE || distanceLeft < SOMEONE_DISTANCE) {
+      for (int k = ROTATION_REST_POSITION; k < ROTATION_STRETCHED_POSITION; k++) {
+      rotationMotor.write(k);
       delay(5);
     }
     rarmMotor.write(RARM_STRETCHED_POSITION);
@@ -310,13 +320,16 @@ void cin_cin_selfie() {
     rarmMotor.write(RARM_REST_POSITION);
 
     // cin cin torna nella posizione frontale
-    for (int i = ROTATION_STRETCHED_POSITION; i > ROTATION_REST_POSITION; i--) {
-      rotationMotor.write(i);
+    for (int k = ROTATION_STRETCHED_POSITION; k > ROTATION_REST_POSITION; k--) {
+      rotationMotor.write(k);
       delay(5);
     }
     delay(1000);
-
+    engagement = true;
+    }
+    i++;
   }
+  
 }
 
 // -------------- HELPER FUNCTIONS --------------
