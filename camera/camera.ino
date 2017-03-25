@@ -3,7 +3,7 @@
  * Code to turn on and off the camera. (readable version)
  *
  * Circuit for button power:
- * Connect the GND of the camera with resistence R1.
+ * Connect the GND of the camera with resistence R1(220).
  * Connect resistence R1 with GND of Arduino.
  * Connect the pin of the camera with pin 10 of Arduino.
  *
@@ -21,14 +21,13 @@
 #define OFF 0
 
 #define TURN_OFF_DEALY 2000
-#define TURN_ON_DELAY 200
 #define SHOOT_DELAY 200
 #define SWITCH_STAGE_DELAY 200
 #define WIFI_ON_DELAY 3000
 #define WIFI_OFF_DELAY 3000
 
-int camState = 0;
-int wifiState = 0;
+int camState = OFF;
+int wifiState = OFF;
 
 void setup() {
     Serial.begin(9600);
