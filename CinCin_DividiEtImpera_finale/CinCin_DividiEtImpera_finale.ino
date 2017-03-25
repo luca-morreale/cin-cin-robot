@@ -273,18 +273,21 @@ void cin_cin_menu() {
     // Se l'utente non prende il menÃ¹ allora Cin Cin si rialza e verifica che l'utente sia ancora lÃ¬, ed eventualmente setta il flag someone a FALSE prima di ritornare
     // Se l'utente Ã¨ ancora lÃ¬ riprova ad offrirgli il menÃ¹, se non viene preso nemmeno questa volta la funzione ritorna
     // Se l'utente prende il menÃ¹ Cin Cin resta inchinato fino a che non viene rimesso a posto, per poi ritornare dopo aver eventualmente settato il flag someone
-
 }
 
 void cin_cin_selfie() 
 {
+    engagement = FALSE;
+    int i = 0;
     //rotazione cin cin a 80°
-    if (thereIsSomeone()) {
-        rotateForSelfie();
-        
-        doSelfie();
-
-        rotateBackFromSelfie();
+    while (i < 5 && !clientEngaged()) {
+        if (thereIsSomeone()) {
+            rotateForSelfie();
+            doSelfie();
+            rotateBackFromSelfie();
+            engagement = TRUE;
+        }
+        i++;
     }
 }
 
@@ -365,7 +368,6 @@ void rotateBackFromSelfie()
         rotationMotor.write(i);
         delay(5);
     }
-    delay(1000);
 }
 
 void doSelfie()
