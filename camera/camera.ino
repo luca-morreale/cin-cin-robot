@@ -20,11 +20,12 @@
 #define ON 1
 #define OFF 0
 
-#define TURN_OFF_DEALY 2000
-#define SHOOT_DELAY 200
+#define TURN_ON_DELAY 200
+#define TURN_OFF_DELAY 4000
+#define SHOOT_DELAY 100        // if increased will take a video!
 #define SWITCH_STAGE_DELAY 200
-#define WIFI_ON_DELAY 3000
-#define WIFI_OFF_DELAY 3000
+#define WIFI_ON_DELAY 4000
+#define WIFI_OFF_DELAY 4000
 
 int camState = OFF;
 int wifiState = OFF;
@@ -42,15 +43,23 @@ void loop() {
     Serial.println("turning on");
     turnOnCamera();
     Serial.println("turn on");
-    delay(10000);
     
+    Serial.println("taking pic");
     takePicture();
+    Serial.println("taken pic");
+    
+    switchOnWiFi();
+    Serial.println("Wifi active");
+    delay(60000);
+    switchOffWiFi();
+    Serial.println("Wifi deactive");
     
     Serial.println("turning off");
     turnOffCamera();
     Serial.println("turn off");
+
+
     delay(10000);
-    
 }
 
 void initPinCamera()
@@ -65,7 +74,7 @@ void turnOnCamera()
         digitalWrite(CAMERA_PIN, LOW);
         delay(TURN_ON_DELAY);
         digitalWrite(CAMERA_PIN, HIGH);
-        
+        delay(5000);    // wait it turns on
         camState = ON;
     }
 }
@@ -74,7 +83,7 @@ void turnOffCamera()
 {
     if (camState == ON) {
         digitalWrite(CAMERA_PIN, LOW);
-        delay(TURN_OFF_DEALY);
+        delay(TURN_OFF_DELAY);
         digitalWrite(CAMERA_PIN, HIGH);
         
         camState = OFF;
@@ -89,6 +98,7 @@ void takePicture()
         digitalWrite(CAMERA_SHOT_PIN, HIGH);
         delay(SHOOT_DELAY);
         digitalWrite(CAMERA_SHOT_PIN, LOW);
+        delay(SHOOT_DELAY);
     }
 }
 
@@ -96,9 +106,10 @@ void switchToPictureStage()
 {
     
     for (int i = 0; i < 2; i++) {
-        digitalWrite(CAMERA_SHOT_PIN, LOW);
+        Serial.println("changing state");
+        digitalWrite(CAMERA_PIN, LOW);
         delay(SWITCH_STAGE_DELAY);
-        digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        digitalWrite(CAMERA_PIN, HIGH);
         delay(SWITCH_STAGE_DELAY);
     }
 }
@@ -106,9 +117,10 @@ void switchToPictureStage()
 void switchOnWiFi()
 {
     if (camState == ON && wifiState == OFF) {
-        digitalWrite(CAMERA_SHOT_PIN, LOW);
-        delay(WIFI_ON_DELAY);
+        Serial.println("inside wifi");
         digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        delay(WIFI_ON_DELAY);
+        digitalWrite(CAMERA_SHOT_PIN, LOW);
         
         wifiState = ON;
     }
@@ -117,9 +129,10 @@ void switchOnWiFi()
 void switchOffWiFi()
 {
     if (camState == ON && wifiState == ON) {
-        digitalWrite(CAMERA_SHOT_PIN, LOW);
-        delay(WIFI_OFF_DELAY);
+        Serial.println("outside wifi");
         digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        delay(WIFI_OFF_DELAY);
+        digitalWrite(CAMERA_SHOT_PIN, LOW);
         
         wifiState = OFF;
     }
