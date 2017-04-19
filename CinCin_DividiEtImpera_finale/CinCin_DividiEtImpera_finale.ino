@@ -17,6 +17,9 @@
 #define ON 1
 #define OFF 0
 
+// ---- SONAR DISTANCES DEBUGGING ----
+#define DEBUG 1
+
 // ---- MOTOR PINS ----
 #define LEFT_PIN 9
 #define RIGHT_PIN 10
@@ -36,9 +39,13 @@
 #define ROTATION_REST_POSITION 10
 #define ROTATION_STRETCHED_POSITION 100
 
-// ---- SONAR DISTANCES DEBUGGING ----
-#define DEBUG 1
-
+// ---- CAMERA's DEALYS ----
+#define TURN_ON_DELAY 200
+#define TURN_OFF_DELAY 4000
+#define SHOOT_DELAY 100        // if increased will take a video!
+#define SWITCH_STAGE_DELAY 200
+#define WIFI_ON_DELAY 4000
+#define WIFI_OFF_DELAY 4000
 
 // ---- DELAYS ----
 #define BOW_DOWN_DELAY 1500
@@ -66,6 +73,10 @@
 #define TRIG_PIN_RIGHT 6
 #define ECHO_PIN_RIGHT 7
 
+// ---- CAMERA's PINS ----
+#define CAMERA_PIN 10
+#define CAMERA_SHOT_PIN 11
+
 // ---- MAXIMUM SONAR DISTANCE (CM) ----
 #define MAX_DISTANCE 300
 
@@ -89,6 +100,10 @@ Servo leftMotor, rightMotor, bowMotor, rarmMotor, rotationMotor;
 // ---- MP3 PLAYER INITIALIZATION ----
 SoftwareSerial mp3Serial(RXPIN, TXPIN);
 
+// ---- STATE VARIABLES OF CAMERA ----
+int camState = OFF;
+int wifiState = OFF;
+
 
 // ---- CONTROL VARIABLES ----
 boolean someone = false; // booleano che indica la presenza o meno dell'utente
@@ -99,6 +114,7 @@ boolean mp3_stopper = false;
 void attachServos();
 void initServos();
 void initSerial();
+void initPinCamera();
 
 void cin_cin_dance();
 void cin_cin_engagement();
@@ -143,8 +159,10 @@ void setup() {
   // Inizializzazione dei motori e dei vari componenti
   // Settaggio dei pin di OUTPUT ed INPUT
 
-  attachServos();
-  initServos();
+    attachServos();
+    initServos();
+    
+    initSerial();
 
   initSerial();
 
@@ -179,6 +197,11 @@ void initSerial()
   mp3_set_volume (30); //max volume is 30
 }
 
+void initPinCamera()
+{
+    digitalWrite(CAMERA_PIN, HIGH);
+    digitalWrite(CAMERA_SHOT_PIN, LOW);
+}
 
 void loop() {
 
@@ -372,9 +395,9 @@ void rotateBackFromSelfie()
 
 void doSelfie()
 {
-  rarmMotor.write(RARM_STRETCHED_POSITION);
-  delay(2000);
-  rarmMotor.write(RARM_REST_POSITION);
+    rarmMotor.write(RARM_STRETCHED_POSITION);
+    delay(2000);
+    rarmMotor.write(RARM_REST_POSITION);
 }
 
 
@@ -417,58 +440,154 @@ boolean clientEngaged()
   return engagement;
 }
 
-void turnCameraOn()
-{ }
-void turnCameraOff()
-{ }
+void turnOnCamera()
+{
+    if (camState == OFF) {
+        digitalWrite(CAMERA_PIN, LOW);
+        delay(TURN_ON_DELAY);
+        digitalWrite(CAMERA_PIN, HIGH);
+        delay(5000);    // wait it turns on
+        camState = ON;
+    }
+}
+
+void turnOffCamera()
+{
+    if (camState == ON) {
+        digitalWrite(CAMERA_PIN, LOW);
+        delay(TURN_OFF_DELAY);
+        digitalWrite(CAMERA_PIN, HIGH);
+        
+        camState = OFF;
+    }
+}
+
+
 void takePicture()
-{ }
-void switchWifiOn()
-{ }
-void switchWifiOff()
-{ }
+{
+    if (camState == ON) {
+        switchToPictureStage();
+        digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        delay(SHOOT_DELAY);
+        digitalWrite(CAMERA_SHOT_PIN, LOW);
+        delay(SHOOT_DELAY);
+    }
+}
+
+void switchToPictureStage()
+{
+    for (int i = 0; i < 2; i++) {
+        digitalWrite(CAMERA_PIN, LOW);
+        delay(SWITCH_STAGE_DELAY);
+        digitalWrite(CAMERA_PIN, HIGH);
+        delay(SWITCH_STAGE_DELAY);
+    }
+}
+
+void switchOnWiFi()
+{
+    if (camState == ON && wifiState == OFF) {
+        Serial.println("inside wifi");
+        digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        delay(WIFI_ON_DELAY);
+        digitalWrite(CAMERA_SHOT_PIN, LOW);
+        
+        wifiState = ON;
+    }
+}
+
+void switchOffWiFi()
+{
+    if (camState == ON && wifiState == ON) {
+        Serial.println("outside wifi");
+        digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        delay(WIFI_OFF_DELAY);
+        digitalWrite(CAMERA_SHOT_PIN, LOW);
+        
+        wifiState = OFF;
+    }
+}
+
 
 void debug(char description, long value)
 {
-#if DEBUG
-  char buff[10];
-  sprintf(buff, "%c %ld", description, value);
-  debug(buff);
+#ifndef DEBUG
+    char buff[1s0];
+    sprintf(buff, "%c%l", description, value);
+    debug(buff);
 #endif
 }
 
 void debug(char *description, long value)
 {
-#if DEBUG
-  char buff[50];
-  sprintf(buff, "%s %ld", description, value);
-  debug(buff);
+#ifndef DEBUG
+    char buff[50];
+    sprintf(buff, "%s%l", description, value);
+    debug(buff);
 #endif
 }
 
 void debug(char description, int value)
 {
-#if DEBUG
-  char buff[20];
-  sprintf(buff, "%c %d", description, value);
-  debug(buff);
+#ifndef DEBUG
+    char buff[20];
+    sprintf(buff, "%c%d", description, value);
+    debug(buff);
 #endif
 }
 
 void debug(char *description, int value)
 {
-#if DEBUG
-  char buff[50];
-  sprintf(buff, "%s %d", description, value);
-  debug(buff);
+#ifndef DEBUG
+    char buff[50];
+    sprintf(buff, "%s%d", description, value);
+    debug(buff);
 #endif
 }
 
 void debug(char *message)
 {
-#if DEBUG
-  Serial.println(message);
+#ifndef DEBUG
+    Serial.println(message);
 #endif
 }
 
 
+
+    attachServos();
+    initServos();
+    
+    initSerial();
+    initPinCamera();
+    rarmMotor.write(RARM_STRETCHED_POSITION);
+    delay(2000);
+    
+    turnOnCamera();
+    takePicture();
+    switchOnWiFi();
+    
+    delay(60000);
+    
+    switchOffWiFi();
+    turnOffCamera();
+    
+    rarmMotor.write(RARM_REST_POSITION);
+    delay(2000);
+#if DEBUG
+    char buff[10];
+    sprintf(buff, "%c %ld", description, value);
+    debug(buff);
+#if DEBUG
+    char buff[50];
+    sprintf(buff, "%s %ld", description, value);
+    debug(buff);
+#if DEBUG
+    char buff[20];
+    sprintf(buff, "%c %d", description, value);
+    debug(buff);
+#if DEBUG
+    char buff[50];
+    sprintf(buff, "%s %d", description, value);
+    debug(buff);
+#if DEBUG
+    Serial.println(message);
