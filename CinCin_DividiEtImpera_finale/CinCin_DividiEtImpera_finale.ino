@@ -25,6 +25,7 @@
 #define RIGHT_PIN 10
 #define BOW_PIN 53
 #define RIGHT_ARM 11
+#define LEFT_ARM 52
 #define ROTATION_PIN 8
 
 // ---- MOTOR INITIAL & FINAL POSITIONS ----
@@ -36,13 +37,15 @@
 #define BOW_REST_POSITION 90
 #define RARM_STRETCHED_POSITION 70
 #define RARM_REST_POSITION 10
+#define LARM_STRETCHED_POSITION 70
+#define LARM_REST_POSITION 10
 #define ROTATION_REST_POSITION 10
 #define ROTATION_STRETCHED_POSITION 100
 
 // ---- CAMERA's DEALYS ----
 #define TURN_ON_DELAY 200
 #define TURN_OFF_DELAY 4000
-#define SHOOT_DELAY 100        // if increased will take a video!
+#define SHOOT_DELAY 500        // if increased will take a video!
 #define SWITCH_STAGE_DELAY 200
 #define WIFI_ON_DELAY 4000
 #define WIFI_OFF_DELAY 4000
@@ -73,12 +76,21 @@
 #define TRIG_PIN_RIGHT 6
 #define ECHO_PIN_RIGHT 7
 
-// ---- CAMERA's PINS ----
-#define CAMERA_PIN 10
-#define CAMERA_SHOT_PIN 11
+// ---- SONAR MINIMUM THRESHOLD (CM) ----
+#define SONAR_MINIMUM_THRESHOLD 10
 
+// ---- CAMERA's PINS ----
+#define CAMERA_PIN 21
+#define CAMERA_SHOT_PIN 20
+
+// ---- TOUCH SENSOR PIN ----
+#define TOUCH_SENSOR_PIN 14
+ 
 // ---- MAXIMUM SONAR DISTANCE (CM) ----
 #define MAX_DISTANCE 300
+
+// ---- PHOTO RESISTOR THRESHOLD ----
+#define PHOTO_RESISTOR_THRESHOLD 150
 
 // ---- STOPPING DANCE DISTANCE (CM) ----
 #define STOP_DISTANCE 130
@@ -92,10 +104,8 @@ NewPing sonarLeft(TRIG_PIN_LEFT, ECHO_PIN_LEFT, MAX_DISTANCE);
 NewPing sonarMiddle(TRIG_PIN_MIDDLE, ECHO_PIN_MIDDLE, MAX_DISTANCE);
 NewPing sonarRight(TRIG_PIN_RIGHT, ECHO_PIN_RIGHT, MAX_DISTANCE);
 
-
 // ---- MOTOR INITIALIZATION ----
-Servo leftMotor, rightMotor, bowMotor, rarmMotor, rotationMotor;
-
+Servo leftMotor, rightMotor, bowMotor, rarmMotor, larmMotor, rotationMotor;
 
 // ---- MP3 PLAYER INITIALIZATION ----
 SoftwareSerial mp3Serial(RXPIN, TXPIN);
@@ -104,16 +114,21 @@ SoftwareSerial mp3Serial(RXPIN, TXPIN);
 int camState = OFF;
 int wifiState = OFF;
 
+// ---- MARSUPIUM ANALOG PIN ----
+int photoResistor = A0;
 
 // ---- CONTROL VARIABLES ----
 boolean someone = false; // booleano che indica la presenza o meno dell'utente
 boolean engagement = false;
 boolean mp3_stopper = false;
 
+
 // ---- FUNCTION PROTOTYPES ----
 void attachServos();
 void initServos();
 void initSerial();
+void initAnalog();
+void initTouch();
 void initPinCamera();
 
 void cin_cin_dance();
@@ -124,7 +139,7 @@ void cin_cin_selfie();
 void sayHi();
 void playDanceMusic();
 void greetClient();
-
+void offerMenu();
 
 void goBackFromLeft();
 void goBackFromRight();
@@ -139,6 +154,8 @@ void doSelfie();
 void updateDistances();
 boolean isClose();
 boolean thereIsSomeone();
+boolean thereIsMenu();
+boolean isTouched();
 boolean clientEngaged();
 
 void turnCameraOn();
@@ -160,15 +177,20 @@ void setup() {
   // Settaggio dei pin di OUTPUT ed INPUT
 
     attachServos();
+    
     initServos();
     
     initSerial();
 
-  initSerial();
+    initPinCamera();
 
-  distanceLeft = 0;
-  distanceMiddle = 0;
-  distanceRight = 0;
+    initAnalog();
+
+    initTouch();
+  
+    distanceLeft = 0;
+    distanceMiddle = 0;
+    distanceRight = 0;
 }
 
 void attachServos()
@@ -177,6 +199,7 @@ void attachServos()
   rightMotor.attach(RIGHT_PIN);
   bowMotor.attach(BOW_PIN);
   rarmMotor.attach(RIGHT_ARM);
+  larmMotor.attach(LEFT_ARM);
   rotationMotor.attach(ROTATION_PIN);
 }
 
@@ -186,6 +209,7 @@ void initServos()
   rightMotor.write(RIGHT_REST_POSITION);
   bowMotor.write(BOW_REST_POSITION);
   rarmMotor.write(RARM_REST_POSITION);
+  larmMotor.write(LARM_REST_POSITION);
   rotationMotor.write(ROTATION_REST_POSITION);
 }
 
@@ -194,11 +218,24 @@ void initSerial()
   Serial.begin(9600);
   mp3Serial.begin(9600);
   mp3_set_serial (mp3Serial); //set Serial for DFPlayer-mini mp3 module
-  mp3_set_volume (30); //max volume is 30
+  mp3_set_volume (20); //max volume is 30
+}
+
+void initAnalog()
+{
+  pinMode(photoResistor, INPUT);// Set photoResistor - A0 pin as an input
+}
+
+void initTouch()
+{
+  pinMode (TOUCH_SENSOR_PIN, INPUT); 
 }
 
 void initPinCamera()
 {
+    pinMode(CAMERA_PIN, OUTPUT);
+    pinMode(CAMERA_SHOT_PIN, OUTPUT);
+    
     digitalWrite(CAMERA_PIN, HIGH);
     digitalWrite(CAMERA_SHOT_PIN, LOW);
 }
@@ -296,11 +333,30 @@ void cin_cin_menu() {
   // Se l'utente non prende il menÃ¹ allora Cin Cin si rialza e verifica che l'utente sia ancora lÃ¬, ed eventualmente setta il flag someone a FALSE prima di ritornare
   // Se l'utente Ã¨ ancora lÃ¬ riprova ad offrirgli il menÃ¹, se non viene preso nemmeno questa volta la funzione ritorna
   // Se l'utente prende il menÃ¹ Cin Cin resta inchinato fino a che non viene rimesso a posto, per poi ritornare dopo aver eventualmente settato il flag someone
+
+  engagement = false; 
+
+  int i = 0;
+  while (i < 5 && !engagement) {
+    if (thereIsSomeone()) {
+      offerMenu();
+      engagement = true;
+    }
+    i++;
+  }
+  
+  if(engagement) {
+    delay(5000);
+    while(!thereIsMenu());
+    delay(500);
+  }
+  
 }
 
 void cin_cin_selfie()
 {
   engagement = FALSE;
+  turnOnCamera();
   int i = 0;
   //rotazione cin cin a 80°
   while (i < 5 && !clientEngaged()) {
@@ -312,6 +368,7 @@ void cin_cin_selfie()
     }
     i++;
   }
+  turnOffCamera();
 }
 
 // -------------- HELPER FUNCTIONS --------------
@@ -340,6 +397,14 @@ void greetClient()
   delay(4000);
   mp3_play(5); //"(inchino) MOLTO PIACERE DI CONOSCERTI, IO SONO CIN CIN"
   delay(4000);
+}
+
+void offerMenu()
+{
+  mp3_play(6); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
+  delay(6000);
+  mp3_play(7); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
+  delay(6000);
 }
 
 void goBackFromLeft()
@@ -396,8 +461,16 @@ void rotateBackFromSelfie()
 void doSelfie()
 {
     rarmMotor.write(RARM_STRETCHED_POSITION);
-    delay(2000);
+    delay(3000);
+  
+    //la persona tocca il sensore touch
+    while(!isTouched());
+    takePicture();
+
     rarmMotor.write(RARM_REST_POSITION);
+    switchOnWiFi();
+    delay(120000);
+    switchOffWiFi();
 }
 
 
@@ -405,13 +478,13 @@ void doSelfie()
 void updateDistances()
 {
   distanceRight = sonarRight.ping_cm();
-  distanceRight = (distanceRight == 0) ? MAX_DISTANCE : distanceRight;
+  distanceRight = (distanceRight == 0 || distanceRight <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceRight;
 
   distanceMiddle = sonarMiddle.ping_cm();
-  distanceMiddle = (distanceMiddle == 0) ? MAX_DISTANCE : distanceMiddle;
+  distanceMiddle = (distanceMiddle == 0 || distanceMiddle <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceMiddle;
 
   distanceLeft = sonarLeft.ping_cm();
-  distanceLeft = (distanceLeft == 0) ? MAX_DISTANCE : distanceLeft;
+  distanceLeft = (distanceLeft == 0 || distanceLeft <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceLeft;
 
   debug('R', distanceRight);
   debug('M', distanceMiddle);
@@ -421,6 +494,25 @@ void updateDistances()
 boolean isClose()
 {
   return distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE;
+}
+
+boolean thereIsMenu()
+{
+  int analog_value = 0;
+  analog_value = analogRead(photoResistor);
+  debug("Light: ",analog_value);
+  if (analog_value > PHOTO_RESISTOR_THRESHOLD)
+      return false;
+  return true;
+}
+
+boolean isTouched()
+{
+  int touch_value = 0;
+  touch_value = digitalRead(TOUCH_SENSOR_PIN);
+  if (touch_value == HIGH)
+    return true;
+  return false;
 }
 
 boolean thereIsSomeone()
@@ -487,7 +579,6 @@ void switchToPictureStage()
 void switchOnWiFi()
 {
     if (camState == ON && wifiState == OFF) {
-        Serial.println("inside wifi");
         digitalWrite(CAMERA_SHOT_PIN, HIGH);
         delay(WIFI_ON_DELAY);
         digitalWrite(CAMERA_SHOT_PIN, LOW);
@@ -499,7 +590,6 @@ void switchOnWiFi()
 void switchOffWiFi()
 {
     if (camState == ON && wifiState == ON) {
-        Serial.println("outside wifi");
         digitalWrite(CAMERA_SHOT_PIN, HIGH);
         delay(WIFI_OFF_DELAY);
         digitalWrite(CAMERA_SHOT_PIN, LOW);
@@ -511,25 +601,25 @@ void switchOffWiFi()
 
 void debug(char description, long value)
 {
-#ifndef DEBUG
-    char buff[1s0];
-    sprintf(buff, "%c%l", description, value);
+#if DEBUG
+    char buff[10];
+    sprintf(buff, "%c%ld", description, value);
     debug(buff);
 #endif
 }
 
 void debug(char *description, long value)
 {
-#ifndef DEBUG
+#if DEBUG
     char buff[50];
-    sprintf(buff, "%s%l", description, value);
+    sprintf(buff, "%s%ld", description, value);
     debug(buff);
 #endif
 }
 
 void debug(char description, int value)
 {
-#ifndef DEBUG
+#if DEBUG
     char buff[20];
     sprintf(buff, "%c%d", description, value);
     debug(buff);
@@ -538,7 +628,7 @@ void debug(char description, int value)
 
 void debug(char *description, int value)
 {
-#ifndef DEBUG
+#if DEBUG
     char buff[50];
     sprintf(buff, "%s%d", description, value);
     debug(buff);
@@ -547,47 +637,8 @@ void debug(char *description, int value)
 
 void debug(char *message)
 {
-#ifndef DEBUG
+#if DEBUG
     Serial.println(message);
 #endif
 }
 
-
-
-    attachServos();
-    initServos();
-    
-    initSerial();
-    initPinCamera();
-    rarmMotor.write(RARM_STRETCHED_POSITION);
-    delay(2000);
-    
-    turnOnCamera();
-    takePicture();
-    switchOnWiFi();
-    
-    delay(60000);
-    
-    switchOffWiFi();
-    turnOffCamera();
-    
-    rarmMotor.write(RARM_REST_POSITION);
-    delay(2000);
-#if DEBUG
-    char buff[10];
-    sprintf(buff, "%c %ld", description, value);
-    debug(buff);
-#if DEBUG
-    char buff[50];
-    sprintf(buff, "%s %ld", description, value);
-    debug(buff);
-#if DEBUG
-    char buff[20];
-    sprintf(buff, "%c %d", description, value);
-    debug(buff);
-#if DEBUG
-    char buff[50];
-    sprintf(buff, "%s %d", description, value);
-    debug(buff);
-#if DEBUG
-    Serial.println(message);

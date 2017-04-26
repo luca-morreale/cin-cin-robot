@@ -14,8 +14,8 @@
  *
  */
 
-#define CAMERA_PIN 10
-#define CAMERA_SHOT_PIN 11
+#define CAMERA_PIN 21
+#define CAMERA_SHOT_PIN 20
 
 #define ON 1
 #define OFF 0

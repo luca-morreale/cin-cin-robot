@@ -1,4 +1,4 @@
-int buttonpin = 3; // define Metal Touch Sensor Interface
+int buttonpin = 40; // define Metal Touch Sensor Interface
 int val ; // define numeric variables val
 void setup ()
 {
