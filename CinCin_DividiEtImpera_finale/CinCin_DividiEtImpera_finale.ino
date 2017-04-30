@@ -23,7 +23,7 @@
 // ---- MOTOR PINS ----
 #define LEFT_PIN 9
 #define RIGHT_PIN 10
-#define BOW_PIN 53
+#define BOW_PIN 15
 #define RIGHT_ARM 11
 #define LEFT_ARM 52
 #define ROTATION_PIN 8
@@ -35,8 +35,8 @@
 #define RIGHT_REST_POSITION 180
 #define BOW_STRETCHED_POSITION 200
 #define BOW_REST_POSITION 90
-#define RARM_STRETCHED_POSITION 70
-#define RARM_REST_POSITION 10
+#define RARM_STRETCHED_POSITION 10
+#define RARM_REST_POSITION 130
 #define LARM_STRETCHED_POSITION 70
 #define LARM_REST_POSITION 10
 #define ROTATION_REST_POSITION 10
@@ -46,7 +46,7 @@
 #define TURN_ON_DELAY 200
 #define TURN_OFF_DELAY 4000
 #define SHOOT_DELAY 500        // if increased will take a video!
-#define SWITCH_STAGE_DELAY 200
+#define SWITCH_STAGE_DELAY 500
 #define WIFI_ON_DELAY 4000
 #define WIFI_OFF_DELAY 4000
 
@@ -140,6 +140,13 @@ void sayHi();
 void playDanceMusic();
 void greetClient();
 void offerMenu();
+void forgottenMenu();
+void sponsorMenu();
+void proposeSelfie();
+void explainSelfie();
+void Cheese();
+void discount();
+void sayBye();
 
 void goBackFromLeft();
 void goBackFromRight();
@@ -158,8 +165,8 @@ boolean thereIsMenu();
 boolean isTouched();
 boolean clientEngaged();
 
-void turnCameraOn();
-void turnCameraOff();
+void turnOnCamera();
+void turnOffCamera();
 void takePicture();
 void switchWifiOn();
 void switchWifiOff();
@@ -191,6 +198,10 @@ void setup() {
     distanceLeft = 0;
     distanceMiddle = 0;
     distanceRight = 0;
+
+    turnOffCamera();
+    delay(500);
+    turnOffCamera();
 }
 
 void attachServos()
@@ -218,7 +229,7 @@ void initSerial()
   Serial.begin(9600);
   mp3Serial.begin(9600);
   mp3_set_serial (mp3Serial); //set Serial for DFPlayer-mini mp3 module
-  mp3_set_volume (20); //max volume is 30
+  mp3_set_volume (30); //max volume is 30
 }
 
 void initAnalog()
@@ -312,11 +323,15 @@ void cin_cin_dance() {
 void cin_cin_engagement()
 {
   engagement = false;
+  debug("Dico ciao...");
+  sayHi();  // contains delay
   sayHi();
 
   int i = 0;
   while (i < 5 && !engagement) {
+    debug("Controllo per inchino...");
     if (thereIsSomeone()) {
+      debug("Inchino...");
       bow();
       standup();
       greetClient();
@@ -347,8 +362,11 @@ void cin_cin_menu() {
   
   if(engagement) {
     delay(5000);
-    while(!thereIsMenu());
-    delay(500);
+    if(thereIsMenu()){
+      offerMenu();
+      delay(5000);
+    }
+    sponsorMenu();
   }
   
 }
@@ -361,14 +379,18 @@ void cin_cin_selfie()
   //rotazione cin cin a 80°
   while (i < 5 && !clientEngaged()) {
     if (thereIsSomeone()) {
+      proposeSelfie();
       rotateForSelfie();
       doSelfie();
       rotateBackFromSelfie();
       engagement = TRUE;
+      discount();
     }
     i++;
   }
   turnOffCamera();
+  if(engagement)
+    sayBye();
 }
 
 // -------------- HELPER FUNCTIONS --------------
@@ -386,25 +408,61 @@ void playDanceMusic()
 void sayHi()
 {
   mp3_play(2); //"EHI EHI VIENI QUI!!!
-  delay(1500);
-  mp3_play(3); //"EHI EHI VIENI QUI!!!
   delay(3000);
 }
 
 void greetClient()
 {
-  mp3_play(4); //"(inchino) MOLTO PIACERE DI CONOSCERTI, IO SONO CIN CIN"
-  delay(4000);
-  mp3_play(5); //"(inchino) MOLTO PIACERE DI CONOSCERTI, IO SONO CIN CIN"
+  mp3_play(3); //"(inchino) PIACERE DI CONOSCERTI, IO SONO CIN CIN"
   delay(4000);
 }
 
 void offerMenu()
 {
-  mp3_play(6); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
+  mp3_play(4); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
   delay(6000);
-  mp3_play(7); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
+}
+
+void sponsorMenu()
+{
+  mp3_play(5); //"HAI VISTO CHE PIATTI BUONI CHE ABBIAMO?"
+  delay(3000);
+}
+
+void proposeSelfie()
+{
+  mp3_play(6); //"TI VA DI FARE UN SELFIE CON ME?"
+  delay(2000);
+}
+
+void explainSelfie()
+{
+  mp3_play(7); //"BASTA CHE SCHIACCI IL CAPPELLO!"
+  delay(3000);
+}
+
+void Cheese()
+{
+  mp3_play(8); //"FAI CHEESEEEE!"
+  delay(2000);
+}
+
+void discount()
+{
+  mp3_play(9); //"SIAMO VENUTI BENISSIMO!"
   delay(6000);
+}
+
+void sayBye()
+{
+  mp3_play(10); //"E' STATO UN PIACERE CONOSCERTI!"
+  delay(4000);
+}
+
+void forgottenMenu()
+{
+  mp3_play(11); //"EHI NON SCAPPARE CON IL MENU'"
+  delay(2000);
 }
 
 void goBackFromLeft()
@@ -461,15 +519,16 @@ void rotateBackFromSelfie()
 void doSelfie()
 {
     rarmMotor.write(RARM_STRETCHED_POSITION);
-    delay(3000);
-  
+    delay(500);
+    explainSelfie();
     //la persona tocca il sensore touch
     while(!isTouched());
+    Cheese();
     takePicture();
-
+    //delay(1000);
     rarmMotor.write(RARM_REST_POSITION);
     switchOnWiFi();
-    delay(120000);
+    delay(60000);
     switchOffWiFi();
 }
 
