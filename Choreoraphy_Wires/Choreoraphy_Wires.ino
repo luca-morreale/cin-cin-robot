@@ -2,24 +2,30 @@
 // Coreography with wires 
 #include <Servo.h>
 
+// ---- MOTOR PINS ----
 #define LEFT_PIN 9
 #define RIGHT_PIN 10
-#define BOW_PIN 11
-#define RIGHT_ARM 12
+#define BOW_PIN 12
+#define RIGHT_ARM 11
+#define LEFT_ARM 52
+#define ROTATION_PIN 8
 
+// ---- MOTOR INITIAL & FINAL POSITIONS ----
 #define LEFT_STRETCHED_POSITION 30
 #define LEFT_REST_POSITION 180
-
 #define RIGHT_STRETCHED_POSITION 30
 #define RIGHT_REST_POSITION 180
-
-#define BOW_STRETCHED_POSITION 160
+#define BOW_STRETCHED_POSITION 200
 #define BOW_REST_POSITION 90
+#define RARM_STRETCHED_POSITION 70
+#define RARM_REST_POSITION 10
+#define LARM_STRETCHED_POSITION 70
+#define LARM_REST_POSITION 10
+#define ROTATION_REST_POSITION 10
+#define ROTATION_STRETCHED_POSITION 100
 
-#define RARM_HIGH_POSITION 0
-#define RARM_LOW_POSITION 90
 
-#define tempo 7
+#define tempo 5
 
 Servo leftMotor, rightMotor, bowMotor, rarmMotor;
 
@@ -51,29 +57,20 @@ void loop() {
 
     delay(tempo);
     }
-   // delay(1000);
+    delay(1000);
     
     for(int i=RIGHT_REST_POSITION;i>RIGHT_STRETCHED_POSITION;i--){
     rightMotor.write(i);
-    rarmMotor.write(i/2.5);
     delay(tempo);
     }
+    
     for(int i=RIGHT_STRETCHED_POSITION;i<RIGHT_REST_POSITION;i++){
     rightMotor.write(i);
-    rarmMotor.write(i/2.5);
     delay(tempo);
     }
    // delay(1000);
 
-    for(int i=BOW_REST_POSITION;i<BOW_STRETCHED_POSITION;i++){
-    bowMotor.write(i);
-    delay(15);
-    }
-    delay(2500);
-    for(int i=BOW_STRETCHED_POSITION;i>BOW_REST_POSITION;i--){
-    bowMotor.write(i);
-    delay(10);
-    }
+    
     
         
 //    delay(1000);
