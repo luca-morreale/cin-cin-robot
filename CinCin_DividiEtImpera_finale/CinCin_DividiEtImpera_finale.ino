@@ -27,6 +27,22 @@
 #define RIGHT_ARM 11
 #define LEFT_ARM 52
 #define ROTATION_PIN 8
+// ---- SONAR PINS ----
+#define TRIG_PIN_LEFT 2
+#define ECHO_PIN_LEFT 3
+#define TRIG_PIN_MIDDLE 4
+#define ECHO_PIN_MIDDLE 5
+#define TRIG_PIN_RIGHT 6
+#define ECHO_PIN_RIGHT 7
+// ---- MP3 PLAYER PINS ----
+#define RXPIN 12
+#define TXPIN 13
+// ---- CAMERA's PINS ----
+#define CAMERA_PIN 21
+#define CAMERA_SHOT_PIN 20
+// ---- TOUCH SENSOR PIN ----
+#define TOUCH_SENSOR_PIN 14
+
 
 // ---- MOTOR INITIAL & FINAL POSITIONS ----
 #define LEFT_STRETCHED_POSITION 30
@@ -42,6 +58,9 @@
 #define ROTATION_REST_POSITION 10
 #define ROTATION_STRETCHED_POSITION 100
 
+// ---- DELAYS ----
+#define BOW_DOWN_DELAY 1500
+#define BOW_UP_DELAY 800
 // ---- CAMERA's DEALYS ----
 #define TURN_ON_DELAY 200
 #define TURN_OFF_DELAY 4000
@@ -50,53 +69,32 @@
 #define WIFI_ON_DELAY 4000
 #define WIFI_OFF_DELAY 4000
 
-// ---- DELAYS ----
-#define BOW_DOWN_DELAY 1500
-#define BOW_UP_DELAY 800
-
-// ---- SONAR PINS ----
-#define TRIG_PIN_LEFT 2
-#define ECHO_PIN_LEFT 3
-#define TRIG_PIN_MIDDLE 4
-#define ECHO_PIN_MIDDLE 5
-#define TRIG_PIN_RIGHT 6
-#define ECHO_PIN_RIGHT 7
-
+// ---- SONARS'S NUMBER OF MEASUREMENTS DURING DANCE ----
 #define MEASUREMENTS_NUMBER 30
-
-// ---- MP3 PLAYER PINS ----
-#define RXPIN 12
-#define TXPIN 13
-
-// ---- SONAR PINS ----
-#define TRIG_PIN_LEFT 2
-#define ECHO_PIN_LEFT 3
-#define TRIG_PIN_MIDDLE 4
-#define ECHO_PIN_MIDDLE 5
-#define TRIG_PIN_RIGHT 6
-#define ECHO_PIN_RIGHT 7
-
-// ---- SONAR MINIMUM THRESHOLD (CM) ----
-#define SONAR_MINIMUM_THRESHOLD 10
-
-// ---- CAMERA's PINS ----
-#define CAMERA_PIN 21
-#define CAMERA_SHOT_PIN 20
-
-// ---- TOUCH SENSOR PIN ----
-#define TOUCH_SENSOR_PIN 14
- 
-// ---- MAXIMUM SONAR DISTANCE (CM) ----
-#define MAX_DISTANCE 300
 
 // ---- PHOTO RESISTOR THRESHOLD ----
 #define PHOTO_RESISTOR_THRESHOLD 150
 
+// ---- SONAR MINIMUM THRESHOLD (CM) ----
+#define SONAR_MINIMUM_THRESHOLD 10
+// ---- MAXIMUM SONAR DISTANCE (CM) ----
+#define MAX_DISTANCE 300
 // ---- STOPPING DANCE DISTANCE (CM) ----
 #define STOP_DISTANCE 130
-
 // ---- SOMEONE DISTANCE (CM)
 #define SOMEONE_DISTANCE 100
+
+// ---- STATE VARIABLES OF CAMERA ----
+int camState = OFF;
+int wifiState = OFF;
+
+// ---- CONTROL VARIABLES ----
+boolean someone = FALSE; // booleano che indica la presenza o meno dell'utente
+boolean engagement = FALSE;
+boolean mp3_stopper = FALSE;
+
+// ---- MARSUPIUM ANALOG PIN ----
+int photoResistor = A0;
 
 // ---- SONAR INITIALIZATION ----
 long distanceLeft, distanceMiddle, distanceRight;
@@ -110,18 +108,6 @@ Servo leftMotor, rightMotor, bowMotor, rarmMotor, larmMotor, rotationMotor;
 // ---- MP3 PLAYER INITIALIZATION ----
 SoftwareSerial mp3Serial(RXPIN, TXPIN);
 
-// ---- STATE VARIABLES OF CAMERA ----
-int camState = OFF;
-int wifiState = OFF;
-
-// ---- MARSUPIUM ANALOG PIN ----
-int photoResistor = A0;
-
-// ---- CONTROL VARIABLES ----
-boolean someone = false; // booleano che indica la presenza o meno dell'utente
-boolean engagement = false;
-boolean mp3_stopper = false;
-
 
 // ---- FUNCTION PROTOTYPES ----
 void attachServos();
@@ -131,33 +117,41 @@ void initAnalog();
 void initTouch();
 void initPinCamera();
 
+// ---- Main functions ----
 void cin_cin_dance();
 void cin_cin_engagement();
 void cin_cin_menu();
 void cin_cin_selfie();
 
-void sayHi();
+// ---- Helper's functions ----
+void bowWhenClose();
+void doSelfie();
+void selfieWhenEngaged();
+
+// ---- Audio's functions ----
 void playDanceMusic();
+void sayHi();
 void greetClient();
 void offerMenu();
-void forgottenMenu();
+void askMenuBack();
 void sponsorMenu();
 void proposeSelfie();
 void explainSelfie();
-void Cheese();
-void discount();
+void sayCheese();
+void explainDiscount();
 void sayBye();
 
+// ---- Motor's functions ----
 void goBackFromLeft();
 void goBackFromRight();
-
 void bow();
 void standup();
 void rotateForSelfie();
 void rotateBackFromSelfie();
-void doSelfie();
+boolean lateralMove(Servo *motor, int start_angle, int end_angle, void (*goBackFunction)());
+boolean loopEndingCondition(int start_angle, int angle, int end_angle);
 
-
+// ---- Sensors' functions ----
 void updateDistances();
 boolean isClose();
 boolean thereIsSomeone();
@@ -165,12 +159,14 @@ boolean thereIsMenu();
 boolean isTouched();
 boolean clientEngaged();
 
+// ---- Camera's functions ----
 void turnOnCamera();
 void turnOffCamera();
 void takePicture();
 void switchWifiOn();
 void switchWifiOff();
 
+// ---- Debug's functions ----
 void debug(char description, long value);
 void debug(char *description, long value);
 void debug(char description, int value);
@@ -179,67 +175,54 @@ void debug(char *message);
 
 
 void setup() {
-
-  // Inizializzazione dei motori e dei vari componenti
-  // Settaggio dei pin di OUTPUT ed INPUT
-
     attachServos();
-    
     initServos();
-    
     initSerial();
-
     initPinCamera();
-
     initAnalog();
-
     initTouch();
   
     distanceLeft = 0;
     distanceMiddle = 0;
     distanceRight = 0;
-
-    turnOffCamera();
-    delay(500);
-    turnOffCamera();
 }
 
 void attachServos()
 {
-  leftMotor.attach(LEFT_PIN);
-  rightMotor.attach(RIGHT_PIN);
-  bowMotor.attach(BOW_PIN);
-  rarmMotor.attach(RIGHT_ARM);
-  larmMotor.attach(LEFT_ARM);
-  rotationMotor.attach(ROTATION_PIN);
+    leftMotor.attach(LEFT_PIN);
+    rightMotor.attach(RIGHT_PIN);
+    bowMotor.attach(BOW_PIN);
+    rarmMotor.attach(RIGHT_ARM);
+    larmMotor.attach(LEFT_ARM);
+    rotationMotor.attach(ROTATION_PIN);
 }
 
 void initServos()
 {
-  leftMotor.write(LEFT_REST_POSITION);
-  rightMotor.write(RIGHT_REST_POSITION);
-  bowMotor.write(BOW_REST_POSITION);
-  rarmMotor.write(RARM_REST_POSITION);
-  larmMotor.write(LARM_REST_POSITION);
-  rotationMotor.write(ROTATION_REST_POSITION);
+    leftMotor.write(LEFT_REST_POSITION);
+    rightMotor.write(RIGHT_REST_POSITION);
+    bowMotor.write(BOW_REST_POSITION);
+    rarmMotor.write(RARM_REST_POSITION);
+    larmMotor.write(LARM_REST_POSITION);
+    rotationMotor.write(ROTATION_REST_POSITION);
 }
 
 void initSerial()
 {
-  Serial.begin(9600);
-  mp3Serial.begin(9600);
-  mp3_set_serial (mp3Serial); //set Serial for DFPlayer-mini mp3 module
-  mp3_set_volume (30); //max volume is 30
+    Serial.begin(9600);
+    mp3Serial.begin(9600);
+    mp3_set_serial(mp3Serial); //set Serial for DFPlayer-mini mp3 module
+    mp3_set_volume(30); //max volume is 30
 }
 
 void initAnalog()
 {
-  pinMode(photoResistor, INPUT);// Set photoResistor - A0 pin as an input
+    pinMode(photoResistor, INPUT);// Set photoResistor - A0 pin as an input
 }
 
 void initTouch()
 {
-  pinMode (TOUCH_SENSOR_PIN, INPUT); 
+    pinMode(TOUCH_SENSOR_PIN, INPUT); 
 }
 
 void initPinCamera()
@@ -249,272 +232,131 @@ void initPinCamera()
     
     digitalWrite(CAMERA_PIN, HIGH);
     digitalWrite(CAMERA_SHOT_PIN, LOW);
+    
+    for (int i = 0; i < 2; i++) {    // during the setup cam turn on so cycle to turn it off
+        camState = ON;
+        turnOffCamera();
+        delay(500);
+    }
 }
 
 void loop() {
-
-  cin_cin_dance();
-  cin_cin_engagement();
-  if (someone)
-    cin_cin_menu();
-  if (someone)
-    cin_cin_selfie();
+    cin_cin_dance();
+    
+    cin_cin_engagement();
+    
+    if (thereIsSomeone()) {
+        cin_cin_menu();
+    }
+    
+    if (thereIsSomeone()) {
+        cin_cin_selfie();
+    }
 }
 
 void cin_cin_dance() {
 
-  // Funzione che fa ballare Cin Cin con musica cinese di sottofondo
-  // Mentre balla rileva se passa qualcuno entro 2 metri c.a.
-  // Quando rileva qualcuno si fermano i motori, la musica e la funzione ritorna dopo aver settato il flag someone a TRUE
-
-  someone = false;
+  someone = FALSE;
 
   if (thereIsSomeone()) {
-    return;
+      return;
   }
 
-  while (true) {
+  while (TRUE) {
+      playDanceMusic();
+    
+      boolean back = lateralMove(&leftMotor, LEFT_REST_POSITION, LEFT_STRETCHED_POSITION, goBackFromLeft);
+      if (back) return;
+      back = lateralMove(&leftMotor, LEFT_STRETCHED_POSITION, LEFT_REST_POSITION, goBackFromLeft);
+      if (back) return;
 
-    playDanceMusic();
-
-    for (int i = LEFT_REST_POSITION; i >= LEFT_STRETCHED_POSITION; i--) {
-      leftMotor.write(i);
-      if ((LEFT_REST_POSITION - i) % 10 == 0) {
-        if (thereIsSomeone()) {
-          goBackFromLeft();
-          return;
-        }
-      }
-    }
-
-    for (int i = LEFT_STRETCHED_POSITION; i < LEFT_REST_POSITION; i++) {
-      leftMotor.write(i);
-      if ((i - LEFT_STRETCHED_POSITION) % 10 == 0) {
-        if (thereIsSomeone()) {
-          goBackFromLeft();
-          return;
-        }
-      }
-    }
-
-    for (int i = RIGHT_REST_POSITION; i >= RIGHT_STRETCHED_POSITION; i--) {
-      rightMotor.write(i);
-      if ((RIGHT_REST_POSITION - i) % 10 == 0) {
-        if (thereIsSomeone()) {
-          goBackFromRight();
-          return;
-        }
-      }
-    }
-
-    for (int i = RIGHT_STRETCHED_POSITION; i < RIGHT_REST_POSITION; i++) {
-      rightMotor.write(i);
-      if ((i - RIGHT_STRETCHED_POSITION) % 10 == 0) {
-        if (thereIsSomeone()) {
-          goBackFromRight();
-          return;
-        }
-      }
-    }
+      back = lateralMove(&rightMotor, RIGHT_REST_POSITION, RIGHT_STRETCHED_POSITION, goBackFromRight);
+      if (back) return;
+      back = lateralMove(&rightMotor, RIGHT_STRETCHED_POSITION, RIGHT_REST_POSITION, goBackFromRight);
+      if (back) return;
   }
 
 }
 
 void cin_cin_engagement()
 {
-  engagement = false;
-  debug("Dico ciao...");
-  sayHi();  // contains delay
-  sayHi();
-
-  int i = 0;
-  while (i < 5 && !engagement) {
-    debug("Controllo per inchino...");
-    if (thereIsSomeone()) {
-      debug("Inchino...");
-      bow();
-      standup();
-      greetClient();
-      engagement = true;
+    engagement = FALSE;
+    debug("Dico ciao...");
+    for (int i = 0; i < 2; i++) {
+        sayHi();  // contains delay
     }
-    i++;
-  }
+    
+    bowWhenClose();
 }
 
 void cin_cin_menu() {
 
-  // Funzione che fa presentare il ristorante e offrire il menù all'utente
-  // Cin Cin presenta il ristorante all'utente per poi invitarlo a dare un'occhiata al menÃ¹ facendo un inchino
-  // Se l'utente non prende il menÃ¹ allora Cin Cin si rialza e verifica che l'utente sia ancora lÃ¬, ed eventualmente setta il flag someone a FALSE prima di ritornare
-  // Se l'utente Ã¨ ancora lÃ¬ riprova ad offrirgli il menÃ¹, se non viene preso nemmeno questa volta la funzione ritorna
-  // Se l'utente prende il menÃ¹ Cin Cin resta inchinato fino a che non viene rimesso a posto, per poi ritornare dopo aver eventualmente settato il flag someone
+    engagement = FALSE; 
 
-  engagement = false; 
-
-  int i = 0;
-  while (i < 5 && !engagement) {
-    if (thereIsSomeone()) {
-      offerMenu();
-      engagement = true;
+    int engagementTrial = 0;
+    while (engagementTrial < 5 && !clientEngaged()) {
+        if (thereIsSomeone()) {
+            offerMenu();
+            engagement = true;
+        }
+        engagementTrial++;
     }
-    i++;
-  }
   
-  if(engagement) {
-    delay(5000);
-    if(thereIsMenu()){
-      offerMenu();
-      delay(5000);
+    if(clientEngaged()) {
+        delay(5000);
+        if(thereIsMenu()){
+            offerMenu();
+            delay(5000);
+        }
+        sponsorMenu();
     }
-    sponsorMenu();
-  }
-  
 }
 
 void cin_cin_selfie()
 {
-  engagement = FALSE;
-  turnOnCamera();
-  int i = 0;
-  //rotazione cin cin a 80°
-  while (i < 5 && !clientEngaged()) {
-    if (thereIsSomeone()) {
-      proposeSelfie();
-      rotateForSelfie();
-      doSelfie();
-      rotateBackFromSelfie();
-      engagement = TRUE;
-      discount();
+    engagement = FALSE;
+    turnOnCamera();
+    selfieWhenEngaged();
+    
+    turnOffCamera();
+    if(clientEngaged()) {
+        sayBye();
     }
-    i++;
-  }
-  turnOffCamera();
-  if(engagement)
-    sayBye();
 }
 
 // -------------- HELPER FUNCTIONS --------------
 
-void playDanceMusic()
-{
-  if (!mp3_stopper) {
-    mp3_play(1); // play 0001.mp3
-    mp3_single_loop(true);
-    mp3_stopper = true;
-    delay(3000);
-  }
+void bowWhenClose() {
+    int engagementTrial = 0;
+    while (engagementTrial < 5 && !clientEngaged()) {
+        debug("Controllo per inchino...");
+        if (thereIsSomeone()) {
+            debug("Inchino...");
+            bow();
+            standup();
+            greetClient();
+            engagement = true;
+        }
+        engagementTrial++;
+    }
 }
 
-void sayHi()
-{
-  mp3_play(2); //"EHI EHI VIENI QUI!!!
-  delay(3000);
+void selfieWhenEngaged() {
+    int engagementTrial = 0;
+    //rotazione cin cin a 80°
+    while (engagementTrial < 5 && !clientEngaged()) {
+        if (thereIsSomeone()) {
+            proposeSelfie();
+            rotateForSelfie();
+            doSelfie();
+            rotateBackFromSelfie();
+            engagement = TRUE;
+            explainDiscount();
+        }
+        engagementTrial++;
+    }
 }
 
-void greetClient()
-{
-  mp3_play(3); //"(inchino) PIACERE DI CONOSCERTI, IO SONO CIN CIN"
-  delay(4000);
-}
-
-void offerMenu()
-{
-  mp3_play(4); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
-  delay(6000);
-}
-
-void sponsorMenu()
-{
-  mp3_play(5); //"HAI VISTO CHE PIATTI BUONI CHE ABBIAMO?"
-  delay(3000);
-}
-
-void proposeSelfie()
-{
-  mp3_play(6); //"TI VA DI FARE UN SELFIE CON ME?"
-  delay(2000);
-}
-
-void explainSelfie()
-{
-  mp3_play(7); //"BASTA CHE SCHIACCI IL CAPPELLO!"
-  delay(3000);
-}
-
-void Cheese()
-{
-  mp3_play(8); //"FAI CHEESEEEE!"
-  delay(2000);
-}
-
-void discount()
-{
-  mp3_play(9); //"SIAMO VENUTI BENISSIMO!"
-  delay(6000);
-}
-
-void sayBye()
-{
-  mp3_play(10); //"E' STATO UN PIACERE CONOSCERTI!"
-  delay(4000);
-}
-
-void forgottenMenu()
-{
-  mp3_play(11); //"EHI NON SCAPPARE CON IL MENU'"
-  delay(2000);
-}
-
-void goBackFromLeft()
-{
-  leftMotor.write(LEFT_REST_POSITION);
-  someone = true;
-  delay(400);
-  mp3_stop();
-  mp3_stopper = false;
-}
-
-void goBackFromRight()
-{
-  rightMotor.write(RIGHT_REST_POSITION);
-  someone = true;
-  delay(400);
-  mp3_stop ();
-  mp3_stopper = false;
-}
-
-void bow()
-{
-  for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++) {
-    bowMotor.write(i);
-    delay(7);
-  }
-  delay(1000);    // delay to let the motor reach the position
-}
-
-void standup() {
-  for (int i = BOW_STRETCHED_POSITION; i > BOW_REST_POSITION; i--) {
-    bowMotor.write(i);
-    delay(7);
-  }
-  delay(1000);    // delay to let the motor reach the position
-}
-
-void rotateForSelfie()
-{
-  for (int i = ROTATION_REST_POSITION; i < ROTATION_STRETCHED_POSITION; i++) {
-    rotationMotor.write(i);
-    delay(5);
-  }
-}
-
-void rotateBackFromSelfie()
-{
-  for (int i = ROTATION_STRETCHED_POSITION; i > ROTATION_REST_POSITION; i--) {
-    rotationMotor.write(i);
-    delay(5);
-  }
-}
 
 void doSelfie()
 {
@@ -523,74 +365,219 @@ void doSelfie()
     explainSelfie();
     //la persona tocca il sensore touch
     while(!isTouched());
-    Cheese();
+    sayCheese();
     takePicture();
-    //delay(1000);
     rarmMotor.write(RARM_REST_POSITION);
     switchOnWiFi();
     delay(60000);
     switchOffWiFi();
 }
 
+// ---- Audio's functions ----
+void playDanceMusic()
+{
+    if (!mp3_stopper) {
+        mp3_play(1); // play 0001.mp3
+        mp3_single_loop(TRUE);
+        mp3_stopper = TRUE;
+        delay(3000);
+    }
+}
 
+void sayHi()
+{
+    mp3_play(2); //"EHI EHI VIENI QUI!!!
+    delay(3000);
+}
 
+void greetClient()
+{
+    mp3_play(3); //"(inchino) PIACERE DI CONOSCERTI, IO SONO CIN CIN"
+    delay(4000);
+}
+
+void offerMenu()
+{
+    mp3_play(4); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
+    delay(6000);
+}
+
+void askMenuBack()
+{
+    mp3_play(11); //"EHI NON SCAPPARE CON IL MENU'"
+    delay(2000);
+}
+
+void sponsorMenu()
+{
+    mp3_play(5); //"HAI VISTO CHE PIATTI BUONI CHE ABBIAMO?"
+    delay(3000);
+}
+
+void proposeSelfie()
+{
+    mp3_play(6); //"TI VA DI FARE UN SELFIE CON ME?"
+    delay(2000);
+}
+
+void explainSelfie()
+{
+    mp3_play(7); //"BASTA CHE SCHIACCI IL CAPPELLO!"
+    delay(3000);
+}
+
+void sayCheese()
+{
+    mp3_play(8); //"FAI CHEESEEEE!"
+    delay(2000);
+}
+
+void explainDiscount()
+{
+    mp3_play(9); //"SIAMO VENUTI BENISSIMO!"
+    delay(6000);
+}
+
+void sayBye()
+{
+    mp3_play(10); //"E' STATO UN PIACERE CONOSCERTI!"
+    delay(4000);
+}
+
+// ---- Motor's functions ----
+boolean lateralMove(Servo *motor, int start_angle, int end_angle, void (*goBackFunction)()) {
+    for (int i = start_angle; loopEndingCondition(start_angle, i, end_angle); (start_angle < end_angle) ? i++ : i--) {
+        motor->write(i);
+        if (abs(start_angle - i) % 10 == 0) {
+            if (thereIsSomeone()) {
+                goBackFunction();
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
+boolean loopEndingCondition(int start_angle, int angle, int end_angle) {
+    if (start_angle > end_angle) {
+        return angle > end_angle;
+    } else {
+        return angle < end_angle;
+    }
+}
+
+void goBackFromLeft()
+{
+    leftMotor.write(LEFT_REST_POSITION);
+    someone = TRUE;
+    delay(400);
+    mp3_stop();
+    mp3_stopper = FALSE;
+}
+
+void goBackFromRight()
+{
+    rightMotor.write(RIGHT_REST_POSITION);
+    someone = TRUE;
+    delay(400);
+    mp3_stop ();
+    mp3_stopper = FALSE;
+}
+
+void bow()
+{
+    for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++) {
+        bowMotor.write(i);
+        delay(7);
+    }
+    delay(1000);    // delay to let the motor reach the position
+}
+
+void standup() {
+    for (int i = BOW_STRETCHED_POSITION; i > BOW_REST_POSITION; i--) {
+        bowMotor.write(i);
+        delay(7);
+    }
+    delay(1000);    // delay to let the motor reach the position
+}
+
+void rotateForSelfie()
+{
+    for (int i = ROTATION_REST_POSITION; i < ROTATION_STRETCHED_POSITION; i++) {
+        rotationMotor.write(i);
+        delay(5);
+    }
+}
+
+void rotateBackFromSelfie()
+{
+    for (int i = ROTATION_STRETCHED_POSITION; i > ROTATION_REST_POSITION; i--) {
+        rotationMotor.write(i);
+        delay(5);
+    }
+}
+
+// ---- Sensor's functions ----
 void updateDistances()
 {
-  distanceRight = sonarRight.ping_cm();
-  distanceRight = (distanceRight == 0 || distanceRight <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceRight;
+    distanceRight = sonarRight.ping_cm();
+    distanceRight = (distanceRight == 0 || distanceRight <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceRight;
 
-  distanceMiddle = sonarMiddle.ping_cm();
-  distanceMiddle = (distanceMiddle == 0 || distanceMiddle <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceMiddle;
+    distanceMiddle = sonarMiddle.ping_cm();
+    distanceMiddle = (distanceMiddle == 0 || distanceMiddle <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceMiddle;
 
-  distanceLeft = sonarLeft.ping_cm();
-  distanceLeft = (distanceLeft == 0 || distanceLeft <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceLeft;
+    distanceLeft = sonarLeft.ping_cm();
+    distanceLeft = (distanceLeft == 0 || distanceLeft <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceLeft;
 
-  debug('R', distanceRight);
-  debug('M', distanceMiddle);
-  debug('L', distanceLeft);
+    debug('R', distanceRight);
+    debug('M', distanceMiddle);
+    debug('L', distanceLeft);
 }
 
 boolean isClose()
 {
-  return distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE;
+    return distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE;
 }
 
 boolean thereIsMenu()
 {
-  int analog_value = 0;
-  analog_value = analogRead(photoResistor);
-  debug("Light: ",analog_value);
-  if (analog_value > PHOTO_RESISTOR_THRESHOLD)
-      return false;
-  return true;
+    int analog_value = 0;
+    analog_value = analogRead(photoResistor);
+    debug("Light: ",analog_value);
+    if (analog_value > PHOTO_RESISTOR_THRESHOLD) {
+        return FALSE;
+    }
+    return TRUE;
 }
 
 boolean isTouched()
 {
-  int touch_value = 0;
-  touch_value = digitalRead(TOUCH_SENSOR_PIN);
-  if (touch_value == HIGH)
-    return true;
-  return false;
+    int touch_value = 0;
+    touch_value = digitalRead(TOUCH_SENSOR_PIN);
+    if (touch_value == HIGH) {
+        return TRUE;
+    }
+    return FALSE;
 }
 
 boolean thereIsSomeone()
 {
-  updateDistances();
+    updateDistances();
 
-  if (isClose()) {
-    someone = TRUE;
-  } else {
-    someone = FALSE;
-  }
-  return someone;
+    if (isClose()) {
+        someone = TRUE;
+    } else {
+        someone = FALSE;
+    }
+    return someone;
 }
 
 boolean clientEngaged()
 {
-  return engagement;
+    return engagement;
 }
 
+// ---- Camera's fuctions ----
 void turnOnCamera()
 {
     if (camState == OFF) {
@@ -657,7 +644,7 @@ void switchOffWiFi()
     }
 }
 
-
+// ---- Debug's functions ----
 void debug(char description, long value)
 {
 #if DEBUG
