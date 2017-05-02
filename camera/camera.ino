@@ -22,8 +22,8 @@
 
 #define TURN_ON_DELAY 200
 #define TURN_OFF_DELAY 4000
-#define SHOOT_DELAY 500        // if increased will take a video!
-#define SWITCH_STAGE_DELAY 200
+#define SHOOT_DELAY 300        // if increased will take a video!
+#define SWITCH_STAGE_DELAY 500
 #define WIFI_ON_DELAY 4000
 #define WIFI_OFF_DELAY 4000
 
@@ -44,7 +44,7 @@ void loop() {
     Serial.println("turning on");
     turnOnCamera();
     Serial.println("turn on");
-    delay(10000);
+    delay(5000);
     
     //la persona tocca il sensore touch
     Serial.println("taking pic");

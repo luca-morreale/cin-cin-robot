@@ -5,6 +5,19 @@
   Vcc -> Blu
 */
 
+/*
+  mp3 player: blu 13, verde 12
+  motori: giallo 11, blu 10, rosso 9, beige 8, grigio 16, arancione 15
+  sonar: arancione scuro 7, verde associato 6, arancione più chiaro 5, verde associato 4, beige 3, verde associato 2
+  camera: blu 19, viola 20
+  fotoresistenza: blu A0
+  
+  breadboard-breadboard:
+    sonar: grigio GROUND, viola TENSIONE 
+    motori: beige GROUND, blu TENSIONE ...
+    
+ */
+
 // ---- LIBRARIES ----
 #include <NewPing.h>
 #include <Servo.h>
@@ -25,7 +38,7 @@
 #define RIGHT_PIN 10
 #define BOW_PIN 15
 #define RIGHT_ARM 11
-#define LEFT_ARM 52
+#define LEFT_ARM 16
 #define ROTATION_PIN 8
 
 // ---- MOTOR INITIAL & FINAL POSITIONS ----
@@ -33,12 +46,12 @@
 #define LEFT_REST_POSITION 180
 #define RIGHT_STRETCHED_POSITION 30
 #define RIGHT_REST_POSITION 180
-#define BOW_STRETCHED_POSITION 200
+#define BOW_STRETCHED_POSITION 190
 #define BOW_REST_POSITION 90
 #define RARM_STRETCHED_POSITION 10
-#define RARM_REST_POSITION 130
-#define LARM_STRETCHED_POSITION 70
-#define LARM_REST_POSITION 10
+#define RARM_REST_POSITION 60
+#define LARM_STRETCHED_POSITION 100
+#define LARM_REST_POSITION 30
 #define ROTATION_REST_POSITION 10
 #define ROTATION_STRETCHED_POSITION 100
 
@@ -80,23 +93,23 @@
 #define SONAR_MINIMUM_THRESHOLD 10
 
 // ---- CAMERA's PINS ----
-#define CAMERA_PIN 21
-#define CAMERA_SHOT_PIN 20
+#define CAMERA_PIN 20
+#define CAMERA_SHOT_PIN 19
 
 // ---- TOUCH SENSOR PIN ----
 #define TOUCH_SENSOR_PIN 14
- 
+
 // ---- MAXIMUM SONAR DISTANCE (CM) ----
 #define MAX_DISTANCE 300
 
 // ---- PHOTO RESISTOR THRESHOLD ----
-#define PHOTO_RESISTOR_THRESHOLD 150
+#define PHOTO_RESISTOR_THRESHOLD 15
 
 // ---- STOPPING DANCE DISTANCE (CM) ----
-#define STOP_DISTANCE 130
+#define STOP_DISTANCE 80
 
 // ---- SOMEONE DISTANCE (CM)
-#define SOMEONE_DISTANCE 100
+#define SOMEONE_DISTANCE 80
 
 // ---- SONAR INITIALIZATION ----
 long distanceLeft, distanceMiddle, distanceRight;
@@ -120,6 +133,7 @@ int photoResistor = A0;
 // ---- CONTROL VARIABLES ----
 boolean someone = false; // booleano che indica la presenza o meno dell'utente
 boolean engagement = false;
+boolean touched = false;
 boolean mp3_stopper = false;
 
 
@@ -144,9 +158,12 @@ void forgottenMenu();
 void sponsorMenu();
 void proposeSelfie();
 void explainSelfie();
-void Cheese();
+void cheese();
 void discount();
 void sayBye();
+void sayHiChinese();
+void cmon();
+void credits();
 
 void goBackFromLeft();
 void goBackFromRight();
@@ -156,7 +173,8 @@ void standup();
 void rotateForSelfie();
 void rotateBackFromSelfie();
 void doSelfie();
-
+void pullUpLeftArm();
+void pullDownLeftArm();
 
 void updateDistances();
 boolean isClose();
@@ -168,8 +186,8 @@ boolean clientEngaged();
 void turnOnCamera();
 void turnOffCamera();
 void takePicture();
-void switchWifiOn();
-void switchWifiOff();
+void switchOnWiFi();
+void switchOffWiFi();
 
 void debug(char description, long value);
 void debug(char *description, long value);
@@ -183,25 +201,24 @@ void setup() {
   // Inizializzazione dei motori e dei vari componenti
   // Settaggio dei pin di OUTPUT ed INPUT
 
-    attachServos();
-    
-    initServos();
-    
-    initSerial();
+  attachServos();
 
-    initPinCamera();
+  initServos();
 
-    initAnalog();
+  initSerial();
 
-    initTouch();
-  
-    distanceLeft = 0;
-    distanceMiddle = 0;
-    distanceRight = 0;
+  initPinCamera();
 
-    turnOffCamera();
-    delay(500);
-    turnOffCamera();
+  initAnalog();
+
+  initTouch();
+
+  distanceLeft = 0;
+  distanceMiddle = 0;
+  distanceRight = 0;
+
+  camState = ON;
+  turnOffCamera();
 }
 
 void attachServos()
@@ -239,16 +256,16 @@ void initAnalog()
 
 void initTouch()
 {
-  pinMode (TOUCH_SENSOR_PIN, INPUT); 
+  pinMode (TOUCH_SENSOR_PIN, INPUT);
 }
 
 void initPinCamera()
 {
-    pinMode(CAMERA_PIN, OUTPUT);
-    pinMode(CAMERA_SHOT_PIN, OUTPUT);
-    
-    digitalWrite(CAMERA_PIN, HIGH);
-    digitalWrite(CAMERA_SHOT_PIN, LOW);
+  pinMode(CAMERA_PIN, OUTPUT);
+  pinMode(CAMERA_SHOT_PIN, OUTPUT);
+
+  digitalWrite(CAMERA_PIN, HIGH);
+  digitalWrite(CAMERA_SHOT_PIN, LOW);
 }
 
 void loop() {
@@ -323,15 +340,13 @@ void cin_cin_dance() {
 void cin_cin_engagement()
 {
   engagement = false;
-  debug("Dico ciao...");
   sayHi();  // contains delay
-  sayHi();
+  sayHiChinese();
+  switchOffWiFi();
 
   int i = 0;
   while (i < 5 && !engagement) {
-    debug("Controllo per inchino...");
     if (thereIsSomeone()) {
-      debug("Inchino...");
       bow();
       standup();
       greetClient();
@@ -349,7 +364,7 @@ void cin_cin_menu() {
   // Se l'utente Ã¨ ancora lÃ¬ riprova ad offrirgli il menÃ¹, se non viene preso nemmeno questa volta la funzione ritorna
   // Se l'utente prende il menÃ¹ Cin Cin resta inchinato fino a che non viene rimesso a posto, per poi ritornare dopo aver eventualmente settato il flag someone
 
-  engagement = false; 
+  engagement = false;
 
   int i = 0;
   while (i < 5 && !engagement) {
@@ -359,16 +374,42 @@ void cin_cin_menu() {
     }
     i++;
   }
-  
-  if(engagement) {
-    delay(5000);
-    if(thereIsMenu()){
-      offerMenu();
-      delay(5000);
+
+  if (engagement) {
+    delay(3000);
+    if (!thereIsMenu()) {
+      for (int k = 0; k < 200; k++)
+      {
+        if (thereIsMenu())
+          k = 200;
+        else
+          delay(100);
+        if (k == 199) {
+          forgottenMenu();
+          delay(2000);
+        }
+      }
+      sponsorMenu();
     }
-    sponsorMenu();
+    else {
+      offerMenu();
+      delay(3000);
+      if (!thereIsMenu()) {
+        for (int w = 0; w < 200; w++)
+        {
+          if (thereIsMenu())
+            w = 200;
+          else
+            delay(100);
+          if (w == 199) {
+            forgottenMenu();
+            delay(2000);
+          }
+        }
+        sponsorMenu();
+      }
+    }
   }
-  
 }
 
 void cin_cin_selfie()
@@ -383,14 +424,26 @@ void cin_cin_selfie()
       rotateForSelfie();
       doSelfie();
       rotateBackFromSelfie();
+      if (touched)
+        discount();
       engagement = TRUE;
-      discount();
+      switchOnWiFi();
     }
     i++;
   }
-  turnOffCamera();
-  if(engagement)
+  if (engagement) {
     sayBye();
+    for (int z = 0; z < 40; z++)
+    {
+      if (isTouched()) {
+        z = 40;
+        credits();
+      }
+      else
+        delay(100);
+    }
+    pullDownLeftArm();
+  }
 }
 
 // -------------- HELPER FUNCTIONS --------------
@@ -441,7 +494,7 @@ void explainSelfie()
   delay(3000);
 }
 
-void Cheese()
+void cheese()
 {
   mp3_play(8); //"FAI CHEESEEEE!"
   delay(2000);
@@ -463,6 +516,24 @@ void forgottenMenu()
 {
   mp3_play(11); //"EHI NON SCAPPARE CON IL MENU'"
   delay(2000);
+}
+
+void cmon()
+{
+  mp3_play(12); //"DAI DAI SBRIGATI!"
+  delay(3000);
+}
+
+void sayHiChinese()
+{
+  mp3_play(13); //"EHI EHI QUE GOLA EH?"
+  delay(3000);
+}
+
+void credits()
+{
+  mp3_play(14); //"TI SCATTERO' UNA FOTO..."
+  delay(32000);
 }
 
 void goBackFromLeft()
@@ -508,6 +579,22 @@ void rotateForSelfie()
   }
 }
 
+void pullUpLeftArm()
+{
+  for (int i = LARM_REST_POSITION; i < LARM_STRETCHED_POSITION; i++) {
+    larmMotor.write(i);
+    delay(5);
+  }
+}
+
+void pullDownLeftArm()
+{
+  for (int i = LARM_STRETCHED_POSITION; i > LARM_REST_POSITION; i--) {
+    larmMotor.write(i);
+    delay(5);
+  }
+}
+
 void rotateBackFromSelfie()
 {
   for (int i = ROTATION_STRETCHED_POSITION; i > ROTATION_REST_POSITION; i--) {
@@ -518,18 +605,37 @@ void rotateBackFromSelfie()
 
 void doSelfie()
 {
-    rarmMotor.write(RARM_STRETCHED_POSITION);
-    delay(500);
-    explainSelfie();
-    //la persona tocca il sensore touch
-    while(!isTouched());
-    Cheese();
-    takePicture();
-    //delay(1000);
-    rarmMotor.write(RARM_REST_POSITION);
-    switchOnWiFi();
-    delay(60000);
-    switchOffWiFi();
+  rarmMotor.write(RARM_STRETCHED_POSITION);
+  delay(500);
+  pullUpLeftArm();
+  explainSelfie();
+  //la persona tocca il sensore touch
+  for (int k = 0; k < 80; k++)
+  {
+    if (isTouched()) {
+      k = 80;
+      cheese();
+      takePicture();
+      touched = true;
+    }
+    else
+      delay(100);
+    if (k == 79) {
+      cmon();
+      for (int j = 0; j < 60; j++)
+      {
+        if (isTouched()) {
+          j = 60;
+          cheese();
+          takePicture();
+          touched = true;
+        }
+        else
+          delay(100);
+      }
+    }
+  }
+  rarmMotor.write(RARM_REST_POSITION);
 }
 
 
@@ -559,9 +665,8 @@ boolean thereIsMenu()
 {
   int analog_value = 0;
   analog_value = analogRead(photoResistor);
-  debug("Light: ",analog_value);
   if (analog_value > PHOTO_RESISTOR_THRESHOLD)
-      return false;
+    return false;
   return true;
 }
 
@@ -593,111 +698,111 @@ boolean clientEngaged()
 
 void turnOnCamera()
 {
-    if (camState == OFF) {
-        digitalWrite(CAMERA_PIN, LOW);
-        delay(TURN_ON_DELAY);
-        digitalWrite(CAMERA_PIN, HIGH);
-        delay(5000);    // wait it turns on
-        camState = ON;
-    }
+  if (camState == OFF) {
+    digitalWrite(CAMERA_PIN, LOW);
+    delay(TURN_ON_DELAY);
+    digitalWrite(CAMERA_PIN, HIGH);
+    delay(5000);    // wait it turns on
+    camState = ON;
+  }
 }
 
 void turnOffCamera()
 {
-    if (camState == ON) {
-        digitalWrite(CAMERA_PIN, LOW);
-        delay(TURN_OFF_DELAY);
-        digitalWrite(CAMERA_PIN, HIGH);
-        
-        camState = OFF;
-    }
+  if (camState == ON) {
+    digitalWrite(CAMERA_PIN, LOW);
+    delay(TURN_OFF_DELAY);
+    digitalWrite(CAMERA_PIN, HIGH);
+
+    camState = OFF;
+  }
 }
 
 
 void takePicture()
 {
-    if (camState == ON) {
-        switchToPictureStage();
-        digitalWrite(CAMERA_SHOT_PIN, HIGH);
-        delay(SHOOT_DELAY);
-        digitalWrite(CAMERA_SHOT_PIN, LOW);
-        delay(SHOOT_DELAY);
-    }
+  if (camState == ON) {
+    switchToPictureStage();
+    digitalWrite(CAMERA_SHOT_PIN, HIGH);
+    delay(SHOOT_DELAY);
+    digitalWrite(CAMERA_SHOT_PIN, LOW);
+    delay(SHOOT_DELAY);
+  }
 }
 
 void switchToPictureStage()
 {
-    for (int i = 0; i < 2; i++) {
-        digitalWrite(CAMERA_PIN, LOW);
-        delay(SWITCH_STAGE_DELAY);
-        digitalWrite(CAMERA_PIN, HIGH);
-        delay(SWITCH_STAGE_DELAY);
-    }
+  for (int i = 0; i < 2; i++) {
+    digitalWrite(CAMERA_PIN, LOW);
+    delay(SWITCH_STAGE_DELAY);
+    digitalWrite(CAMERA_PIN, HIGH);
+    delay(SWITCH_STAGE_DELAY);
+  }
 }
 
 void switchOnWiFi()
 {
-    if (camState == ON && wifiState == OFF) {
-        digitalWrite(CAMERA_SHOT_PIN, HIGH);
-        delay(WIFI_ON_DELAY);
-        digitalWrite(CAMERA_SHOT_PIN, LOW);
-        
-        wifiState = ON;
-    }
+  if (camState == ON && wifiState == OFF) {
+    digitalWrite(CAMERA_SHOT_PIN, HIGH);
+    delay(WIFI_ON_DELAY);
+    digitalWrite(CAMERA_SHOT_PIN, LOW);
+
+    wifiState = ON;
+  }
 }
 
 void switchOffWiFi()
 {
-    if (camState == ON && wifiState == ON) {
-        digitalWrite(CAMERA_SHOT_PIN, HIGH);
-        delay(WIFI_OFF_DELAY);
-        digitalWrite(CAMERA_SHOT_PIN, LOW);
-        
-        wifiState = OFF;
-    }
+  if (camState == ON && wifiState == ON) {
+    digitalWrite(CAMERA_SHOT_PIN, HIGH);
+    delay(WIFI_OFF_DELAY);
+    digitalWrite(CAMERA_SHOT_PIN, LOW);
+
+    wifiState = OFF;
+  }
 }
 
 
 void debug(char description, long value)
 {
 #if DEBUG
-    char buff[10];
-    sprintf(buff, "%c%ld", description, value);
-    debug(buff);
+  char buff[10];
+  sprintf(buff, "%c%ld", description, value);
+  debug(buff);
 #endif
 }
 
 void debug(char *description, long value)
 {
 #if DEBUG
-    char buff[50];
-    sprintf(buff, "%s%ld", description, value);
-    debug(buff);
+  char buff[50];
+  sprintf(buff, "%s%ld", description, value);
+  debug(buff);
 #endif
 }
 
 void debug(char description, int value)
 {
 #if DEBUG
-    char buff[20];
-    sprintf(buff, "%c%d", description, value);
-    debug(buff);
+  char buff[20];
+  sprintf(buff, "%c%d", description, value);
+  debug(buff);
 #endif
 }
 
 void debug(char *description, int value)
 {
 #if DEBUG
-    char buff[50];
-    sprintf(buff, "%s%d", description, value);
-    debug(buff);
+  char buff[50];
+  sprintf(buff, "%s%d", description, value);
+  debug(buff);
 #endif
 }
 
 void debug(char *message)
 {
 #if DEBUG
-    Serial.println(message);
+  Serial.println(message);
 #endif
 }
 
