@@ -170,9 +170,10 @@ void discount();
 void sayBye();
 void sayHiChinese();
 void credits();
-void chack();
+void pictureNoise();
 
 bool motorMovement(Servo *motor, int start, int end, void(*goback)(void));
+void motorMovementNoSonar(Servo *motor, int start, int end, void(*goback)(void));
 bool forloopEndingCond(int i, int start, int end);
 void forloopIncrement(int *i, int start, int end);
 void goBackFromLeft();
@@ -186,7 +187,9 @@ void pullUpLeftArm();
 void pullDownLeftArm();
 void pullUpLeftArmGesture();
 void pullDownLeftArmGesture();
+void convultionLeftArmWhileSpeak();
 void danglingWhileSpeak();        // move the body while the robot is playing and audio
+void dangleOnce();
 void waitForMenu();
 void selfieSequenceActions();
 void hiddenFeature();
@@ -204,6 +207,9 @@ void turnOffCamera();
 void takePicture();
 void switchOnWiFi();
 void switchOffWiFi();
+
+long convertToMillis(int seconds);
+void setAudioStopTime(int seconds);
 
 void debug(char description, long value);
 void debug(char *description, long value);
@@ -400,31 +406,41 @@ void playDanceMusic()
 void sayHi()
 {
     mp3_play(2); //"EHI EHI VIENI QUI!!!
-    delay(3000);
+    
+    setAudioStopTime(3);
+    convultionLeftArmWhileSpeak();
 }
 
 void greetClient()
 {
     mp3_play(3); //"(inchino) PIACERE DI CONOSCERTI, IO SONO CIN CIN"
-    delay(4000);
+    
+    setAudioStopTime(4);
+    convultionLeftArmWhileSpeak();      // should also dangle???
 }
 
 void offerMenu()
 {
     mp3_play(4); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
-    delay(4000);
+
+    setAudioStopTime(4);
+    danglingWhileSpeak();
 }
 
 void sponsorMenu()
 {
     mp3_play(5); //"HAI VISTO CHE PIATTI BUONI CHE ABBIAMO?"
-    delay(3000);
+    
+    setAudioStopTime(3);
+    danglingWhileSpeak();
 }
 
 void proposeSelfie()
 {
     mp3_play(6); //"TI VA DI FARE UN SELFIE CON ME?"
-    delay(2000);
+    
+    setAudioStopTime(2);
+    convultionLeftArmWhileSpeak();
 }
 
 void gettingLaid()
@@ -442,34 +458,44 @@ void cheese()
 void discount()
 {
     mp3_play(9); //"SIAMO VENUTI BENISSIMO!"
-    delay(6000);
+    
+    setAudioStopTime(6);
+    danglingWhileSpeak();
 }
 
 void sayBye()
 {
     mp3_play(10); //"E' STATO UN PIACERE CONOSCERTI!"
-    delay(4000);
+    
+    setAudioStopTime(4);
+    danglingWhileSpeak();
 }
 
 void forgottenMenu()
 {
     mp3_play(11); //"EHI NON SCAPPARE CON IL MENU'"
-    delay(2000);
+    
+    setAudioStopTime(2);
+    danglingWhileSpeak();
 }
 
 void sayHiChinese()
 {
     mp3_play(13); //"EHI EHI QUE GOLA EH?"
-    delay(3000);
+
+    setAudioStopTime(3);
+    convultionLeftArmWhileSpeak();
 }
 
 void credits()
 {
     mp3_play(14); //"TI SCATTERO' UNA FOTO..."
-    delay(32000);
+    
+    setAudioStopTime(32);
+    danglingWhileSpeak();
 }
 
-void chack()
+void pictureNoise()
 {
     mp3_play(15); //"CHACK!"
     delay(2000);
@@ -491,6 +517,14 @@ bool motorMovement(Servo *motor, int start, int end, void(*goback)(void))
         }
     }
     return false;
+}
+
+void motorMovementNoSonar(Servo *motor, int start, int end, void(*goback)(void))
+{
+    for (int i = start; forloopEndingCond(i, start, end); forloopIncrement(&i, start, end)) {
+        motor->write(i);
+        delay(5);
+    }
 }
 
 bool forloopEndingCond(int i, int start, int end)
@@ -600,12 +634,47 @@ void doSelfie()
     delay(500);
     pullUpLeftArm();
     gettingLaid();
-    delay(3000);
+    delay(3000);    // gives time to person to reach position
     cheese();
     takePicture();
     rarmMotor.write(RARM_REST_POSITION);
 }
 
+void convultionLeftArmWhileSpeak()
+{
+    long start = millis();
+    long current = millis();
+
+    while(current - start < audio_time){
+        pullUpLeftArmGesture();
+        delay(200);
+        pullDownLeftArmGesture();
+        current = millis();
+    }
+}
+
+void danglingWhileSpeak()        // move the body while the robot is playing and audio
+{
+    long start = millis();
+    long current = millis();
+
+    while(current - start < audio_time){
+        dangleOnce();
+        current = millis();
+    }
+}
+
+void dangleOnce()
+{
+    // please do not increase the delay
+    motorMovementNoSonar(&leftMotor, LEFT_REST_POSITION, LEFT_STRETCHED_POSITION-20, &goBackFromLeft);
+    delay(10);
+    motorMovementNoSonar(&leftMotor, LEFT_STRETCHED_POSITION-20, LEFT_REST_POSITION, &goBackFromLeft);
+    delay(10);
+    motorMovementNoSonar(&leftMotor, RIGHT_REST_POSITION, RIGHT_STRETCHED_POSITION, &goBackFromRight);
+    delay(10);
+    motorMovementNoSonar(&leftMotor, RIGHT_STRETCHED_POSITION, RIGHT_REST_POSITION, &goBackFromRight);
+}
 
 void waitForMenu() 
 {
@@ -616,16 +685,15 @@ void waitForMenu()
 
     if (!thereIsMenu()) {
         forgottenMenu();
-        delay(1000);
+        delay(1000);        // WHY???? do we really need this?
     }
-        
 }
 
 void selfieSequenceActions()
 {
     proposeSelfie();
     rotateForSelfie();
-    doSelfie();
+    doSelfie();     // inside pullUpLeftArm()
     rotateBackFromSelfie();
     discount();
     engagement = TRUE;
@@ -744,7 +812,7 @@ void takePicture()
         delay(SHOOT_DELAY);
         digitalWrite(CAMERA_SHOT_PIN, LOW);
         delay(SHOOT_DELAY);
-        chack();
+        pictureNoise();
     }
 }
 
@@ -780,6 +848,17 @@ void switchOffWiFi()
     }
 }
 
+// -------------- HELPER FUNCTIONS --------------
+
+long convertToMillis(int seconds)
+{
+    return (long)seconds * 1000;
+}
+
+void setAudioStopTime(int seconds)
+{
+    audio_time = convertToMillis(seconds);
+}
 
 // -------------- DEBUG FUNCTIONS --------------
 
