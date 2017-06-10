@@ -1,20 +1,20 @@
 /* IMPORTANTISSIMO: I SONAR VANNO ALIMENTATI A PARTE (5 V)
-  Trigger -> Grigio
-  Echo -> Viola
-  Gnd -> Verde
-  Vcc -> Blu
+    Trigger -> Grigio
+    Echo -> Viola
+    Gnd -> Verde
+    Vcc -> Blu
 */
 
 /*
-  mp3 player: blu 13, verde 12
-  motori: giallo 11, blu 10, rosso 9, beige 8, grigio 16, arancione 15
-  sonar: arancione scuro 7, verde associato 6, arancione più chiaro 5, verde associato 4, beige 3, verde associato 2
-  camera: blu 19, viola 20
-  fotoresistenza: blu A0
+    mp3 player: blu 13, verde 12
+    motori: giallo 11, blu 10, rosso 9, beige 8, grigio 16, arancione 15
+    sonar: arancione scuro 7, verde associato 6, arancione più chiaro 5, verde associato 4, beige 3, verde associato 2
+    camera: blu 19, viola 20
+    fotoresistenza: blu A0
 
-  breadboard-breadboard:
-    sonar: grigio GROUND, viola TENSIONE
-    motori: beige GROUND, blu TENSIONE ...
+    breadboard-breadboard:
+        sonar: grigio GROUND, viola TENSIONE
+        motori: beige GROUND, blu TENSIONE ...
 
 */
 
@@ -29,6 +29,7 @@
 #define FALSE false
 #define ON 1
 #define OFF 0
+#define MAGIC_NUMBER 5
 
 // ---- SONAR DISTANCES DEBUGGING ----
 #define DEBUG 1
@@ -60,7 +61,7 @@
 // ---- CAMERA's DEALYS ----
 #define TURN_ON_DELAY 200
 #define TURN_OFF_DELAY 4000
-#define SHOOT_DELAY 500        // if increased will take a video!
+#define SHOOT_DELAY 500                // if increased will take a video!
 #define SWITCH_STAGE_DELAY 500
 #define WIFI_ON_DELAY 4000
 #define WIFI_OFF_DELAY 4000
@@ -138,6 +139,10 @@ boolean engagement = false;
 boolean touched = false;
 boolean mp3_stopper = false;
 
+// ---- TIMING VARIABLES ----
+long audio_time = 0;
+
+
 
 // ---- FUNCTION PROTOTYPES ----
 void attachServos();
@@ -167,9 +172,11 @@ void sayHiChinese();
 void credits();
 void chack();
 
+bool motorMovement(Servo *motor, int start, int end, void(*goback)(void));
+bool forloopEndingCond(int i, int start, int end);
+void forloopIncrement(int *i, int start, int end);
 void goBackFromLeft();
 void goBackFromRight();
-
 void bow();
 void standup();
 void rotateForSelfie();
@@ -179,6 +186,11 @@ void pullUpLeftArm();
 void pullDownLeftArm();
 void pullUpLeftArmGesture();
 void pullDownLeftArmGesture();
+void danglingWhileSpeak();        // move the body while the robot is playing and audio
+void waitForMenu();
+void selfieSequenceActions();
+void hiddenFeature();
+
 
 void updateDistances();
 boolean isClose();
@@ -201,679 +213,615 @@ void debug(char *message);
 
 
 void setup() {
+    // Inizializzazione dei motori e dei vari componenti
+    // Settaggio dei pin di OUTPUT ed INPUT
 
-  // Inizializzazione dei motori e dei vari componenti
-  // Settaggio dei pin di OUTPUT ed INPUT
+    attachServos();
 
-  attachServos();
+    initServos();
+    initSerial();
+    initPinCamera();
+    initAnalog();
+    initTouch();
 
-  initServos();
+    distanceLeft = 0;
+    distanceMiddle = 0;
+    distanceRight = 0;
 
-  initSerial();
-
-  initPinCamera();
-
-  initAnalog();
-
-  initTouch();
-
-  distanceLeft = 0;
-  distanceMiddle = 0;
-  distanceRight = 0;
-
-  camState = ON;
-  turnOffCamera();
+    camState = ON;
+    turnOffCamera();
 }
 
 void attachServos()
 {
-  leftMotor.attach(LEFT_PIN);
-  rightMotor.attach(RIGHT_PIN);
-  bowMotor.attach(BOW_PIN);
-  rarmMotor.attach(RIGHT_ARM);
-  larmMotor.attach(LEFT_ARM);
-  rotationMotor.attach(ROTATION_PIN);
+    leftMotor.attach(LEFT_PIN);
+    rightMotor.attach(RIGHT_PIN);
+    bowMotor.attach(BOW_PIN);
+    rarmMotor.attach(RIGHT_ARM);
+    larmMotor.attach(LEFT_ARM);
+    rotationMotor.attach(ROTATION_PIN);
 }
 
 void initServos()
 {
-  leftMotor.write(LEFT_REST_POSITION);
-  rightMotor.write(RIGHT_REST_POSITION);
-  bowMotor.write(BOW_REST_POSITION);
-  rarmMotor.write(RARM_REST_POSITION);
-  larmMotor.write(LARM_REST_POSITION);
-  rotationMotor.write(ROTATION_REST_POSITION);
+    leftMotor.write(LEFT_REST_POSITION);
+    rightMotor.write(RIGHT_REST_POSITION);
+    bowMotor.write(BOW_REST_POSITION);
+    rarmMotor.write(RARM_REST_POSITION);
+    larmMotor.write(LARM_REST_POSITION);
+    rotationMotor.write(ROTATION_REST_POSITION);
 }
 
 void initSerial()
 {
-  Serial.begin(9600);
-  mp3Serial.begin(9600);
-  mp3_set_serial (mp3Serial); //set Serial for DFPlayer-mini mp3 module
-  mp3_set_volume (30); //max volume is 30
+    Serial.begin(9600);
+    mp3Serial.begin(9600);
+    mp3_set_serial (mp3Serial); //set Serial for DFPlayer-mini mp3 module
+    mp3_set_volume (30); //max volume is 30
 }
 
 void initAnalog()
 {
-  pinMode(photoResistor, INPUT);// Set photoResistor - A0 pin as an input
+    pinMode(photoResistor, INPUT);// Set photoResistor - A0 pin as an input
 }
 
 void initTouch()
 {
-  pinMode (TOUCH_SENSOR_PIN, INPUT);
+    pinMode (TOUCH_SENSOR_PIN, INPUT);
 }
 
 void initPinCamera()
 {
-  pinMode(CAMERA_PIN, OUTPUT);
-  pinMode(CAMERA_SHOT_PIN, OUTPUT);
+    pinMode(CAMERA_PIN, OUTPUT);
+    pinMode(CAMERA_SHOT_PIN, OUTPUT);
 
-  digitalWrite(CAMERA_PIN, HIGH);
-  digitalWrite(CAMERA_SHOT_PIN, LOW);
+    digitalWrite(CAMERA_PIN, HIGH);
+    digitalWrite(CAMERA_SHOT_PIN, LOW);
 }
 
-void loop() {
-
-  cin_cin_dance();
-  cin_cin_engagement();
-  if (someone)
-    cin_cin_menu();
-  if (someone)
-    cin_cin_selfie();
+void loop() 
+{
+    cin_cin_dance();
+    cin_cin_engagement();
+    if (thereIsSomeone()) {
+        cin_cin_menu();
+    }
+    if (thereIsSomeone()) {
+        cin_cin_selfie();
+    }
 }
+
 
 void cin_cin_dance() {
 
-  // Funzione che fa ballare Cin Cin con musica cinese di sottofondo
-  // Mentre balla rileva se passa qualcuno entro 2 metri c.a.
-  // Quando rileva qualcuno si fermano i motori, la musica e la funzione ritorna dopo aver settato il flag someone a TRUE
+    // Funzione che fa ballare Cin Cin con musica cinese di sottofondo
+    // Mentre balla rileva se passa qualcuno entro 2 metri c.a.
+    // Quando rileva qualcuno si fermano i motori, la musica e la funzione ritorna dopo aver settato il flag someone a TRUE
 
-  someone = false;
+    someone = false;
 
-  if (thereIsSomeone()) {
-    return;
-  }
+    if (thereIsSomeone()) return; // in this case no need to attract someone
 
-  while (true) {
+    while (true) {
 
-    playDanceMusic();
+        playDanceMusic();
 
-    for (int i = LEFT_REST_POSITION; i >= LEFT_STRETCHED_POSITION; i--) {
-      leftMotor.write(i);
-      if ((LEFT_REST_POSITION - i) % 10 == 0) {
-        if (thereIsSomeone()) {
-          goBackFromLeft();
-          return;
-        }
-      }
+        bool state = motorMovement(&leftMotor, LEFT_REST_POSITION, LEFT_STRETCHED_POSITION, &goBackFromLeft);
+        if (state) return;
+
+        state = motorMovement(&leftMotor, LEFT_STRETCHED_POSITION, LEFT_REST_POSITION, &goBackFromLeft);
+        if (state) return;
+
+        state = motorMovement(&leftMotor, RIGHT_REST_POSITION, RIGHT_STRETCHED_POSITION, &goBackFromRight);
+        if (state) return;
+
+        state = motorMovement(&leftMotor, RIGHT_STRETCHED_POSITION, RIGHT_REST_POSITION, &goBackFromRight);
+        if (state) return;
     }
-
-    for (int i = LEFT_STRETCHED_POSITION; i < LEFT_REST_POSITION; i++) {
-      leftMotor.write(i);
-      if ((i - LEFT_STRETCHED_POSITION) % 10 == 0) {
-        if (thereIsSomeone()) {
-          goBackFromLeft();
-          return;
-        }
-      }
-    }
-
-    for (int i = RIGHT_REST_POSITION; i >= RIGHT_STRETCHED_POSITION; i--) {
-      rightMotor.write(i);
-      if ((RIGHT_REST_POSITION - i) % 10 == 0) {
-        if (thereIsSomeone()) {
-          goBackFromRight();
-          return;
-        }
-      }
-    }
-
-    for (int i = RIGHT_STRETCHED_POSITION; i < RIGHT_REST_POSITION; i++) {
-      rightMotor.write(i);
-      if ((i - RIGHT_STRETCHED_POSITION) % 10 == 0) {
-        if (thereIsSomeone()) {
-          goBackFromRight();
-          return;
-        }
-      }
-    }
-  }
-
 }
 
 void cin_cin_engagement()
 {
-  engagement = false;
-  sayHi();  // contains delay
-  sayHiChinese();
-  for (int i = LEFT_REST_POSITION; i >= LEFT_STRETCHED_POSITION; i--) {
-      leftMotor.write(i);
-    }
-    delay(200);
-          
-  for (int i = LEFT_STRETCHED_POSITION; i <= LEFT_REST_POSITION; i++) {
-      leftMotor.write(i);
-  }
-  delay(500);
-  bow();
-  pullUpLeftArmGesture();
-  delay(500);
-  pullDownLeftArmGesture();
-  switchOffWiFi();
-
-  int i = 0;
-  while (i < 5 && !engagement) {
-    if (thereIsSomeone()) {
-      bow();
-      standup();
-      
-    for (int i = RIGHT_REST_POSITION; i >= RIGHT_STRETCHED_POSITION; i--) {
-      rightMotor.write(i);
-    }
-    delay(500);
+    engagement = false;
+    sayHi();
+    sayHiChinese();        // during presentation should rise the arm
     
-    for (int i = RIGHT_STRETCHED_POSITION; i < RIGHT_REST_POSITION; i++) {
-      rightMotor.write(i);
-    }
-
-    greetClient();
-    
-      
-    for (int i = LEFT_REST_POSITION; i >= LEFT_STRETCHED_POSITION; i--) {
-      leftMotor.write(i);
-    }
-    delay(500);
-          
-    for (int i = LEFT_STRETCHED_POSITION; i <= LEFT_REST_POSITION; i++) {
-      leftMotor.write(i);
-    }
-    delay(500);
     bow();
     
-    for (int i = LEFT_REST_POSITION; i >= LEFT_STRETCHED_POSITION; i--) {
-      leftMotor.write(i);
+    switchOffWiFi();
+
+    int i = 0;
+    while (i < MAGIC_NUMBER && !clientEngaged()) {
+        if (thereIsSomeone()) {
+            greetClient();
+            engagement = true;
+        }
+        i++;
     }
-    delay(400);
-    for (int i = LEFT_STRETCHED_POSITION; i <= LEFT_REST_POSITION; i++) {
-      leftMotor.write(i);
-    }
-    bow();
-    
-      pullUpLeftArmGesture();
-      delay(500);
-      pullDownLeftArm();
-      delay(500);
-      engagement = true;
-    }
-    i++;
-  }
 }
 
-void cin_cin_menu() {
+void cin_cin_menu() 
+{
 
-  // Funzione che fa presentare il ristorante e offrire il menù all'utente
-  // Cin Cin presenta il ristorante all'utente per poi invitarlo a dare un'occhiata al menÃ¹ facendo un inchino
-  // Se l'utente non prende il menÃ¹ allora Cin Cin si rialza e verifica che l'utente sia ancora lÃ¬, ed eventualmente setta il flag someone a FALSE prima di ritornare
-  // Se l'utente Ã¨ ancora lÃ¬ riprova ad offrirgli il menÃ¹, se non viene preso nemmeno questa volta la funzione ritorna
-  // Se l'utente prende il menÃ¹ Cin Cin resta inchinato fino a che non viene rimesso a posto, per poi ritornare dopo aver eventualmente settato il flag someone
+    // Funzione che fa presentare il ristorante e offrire il menù all'utente
+    // Cin Cin presenta il ristorante all'utente per poi invitarlo a dare un'occhiata al menÃ¹ facendo un inchino
+    // Se l'utente non prende il menÃ¹ allora Cin Cin si rialza e verifica che l'utente sia ancora lÃ¬, ed eventualmente setta il flag someone a FALSE prima di ritornare
+    // Se l'utente Ã¨ ancora lÃ¬ riprova ad offrirgli il menÃ¹, se non viene preso nemmeno questa volta la funzione ritorna
+    // Se l'utente prende il menÃ¹ Cin Cin resta inchinato fino a che non viene rimesso a posto, per poi ritornare dopo aver eventualmente settato il flag someone
 
-  engagement = false;
+    engagement = false;
 
-  int i = 0;
-  while (i < 5 && !engagement) {
-    if (thereIsSomeone()) {
-    for (int i = LEFT_REST_POSITION; i >= LEFT_STRETCHED_POSITION; i--) {
-      leftMotor.write(i);
+    int i = 0;
+    while (i < MAGIC_NUMBER && !clientEngaged()) {
+        if (thereIsSomeone()) {
+            offerMenu();
+            engagement = true;
+        }
+        i++;
     }
-    delay(200);
-          
-    for (int i = LEFT_STRETCHED_POSITION; i <= LEFT_REST_POSITION; i++) {
-      leftMotor.write(i);
-    }
-    delay(500);
-    bow();
+    if (!clientEngaged()) return;
 
-    offerMenu();
-    
-    for (int i = LEFT_REST_POSITION; i >= LEFT_STRETCHED_POSITION; i--) {
-      leftMotor.write(i);
-    }
-    delay(200);
-    for (int i = LEFT_STRETCHED_POSITION; i <= LEFT_REST_POSITION; i++) {
-      leftMotor.write(i);
-    }
-    bow();
-
-      engagement = true;
-    }
-    i++;
-  }
-
-  if (engagement) {
-    delay(3000);
+    delay(500);     // WTF?!?! here it was delay 3000
     if (!thereIsMenu()) {
-      for (int k = 0; k < 200; k++)
-      {
-        if (thereIsMenu())
-          k = 200;
-        else
-          delay(100);
-        if (k == 199) {
-          forgottenMenu();
-          delay(2000);
-        }
-      }
-      pullUpLeftArmGesture();
-      sponsorMenu();
-      pullDownLeftArmGesture();
+        waitForMenu();
+    } else {
+        offerMenu();
+        delay(500);
+        waitForMenu();
     }
-    else {
-      offerMenu();
-      delay(3000);
-      if (!thereIsMenu()) {
-        for (int w = 0; w < 200; w++)
-        {
-          if (thereIsMenu())
-            w = 200;
-          else
-            delay(100);
-          if (w == 199) {
-            forgottenMenu();
-            delay(2000);
-          }
-        }
-        pullUpLeftArmGesture();
-        sponsorMenu();
-        pullDownLeftArmGesture();
-      }
-    }
-  }
+    sponsorMenu();
 }
 
 void cin_cin_selfie()
 {
-  engagement = FALSE;
-  turnOnCamera();
-  int i = 0;
-  //rotazione cin cin a 80°
-  while (i < 5 && !clientEngaged()) {
-    if (thereIsSomeone()) {
-      proposeSelfie();
-      rotateForSelfie();
-      doSelfie();
-      rotateBackFromSelfie();
-      discount();
-      engagement = TRUE;
-      switchOnWiFi();
+    engagement = FALSE;
+    turnOnCamera();
+    int i = 0;
+    //rotazione cin cin a 80°
+    while (i < MAGIC_NUMBER && !clientEngaged()) {
+        if (thereIsSomeone()) {
+            selfieSequenceActions();
+        }
+        i++;
     }
-    i++;
-  }
-  if (engagement) {
-    sayBye();
-    for (int z = 0; z < 40; z++)
-    {
-      if (isTouched()) {
-        z = 40;
-        credits();
-      }
-      else
-        delay(100);
-    }
-    pullDownLeftArm();
-  }
 }
 
-// -------------- HELPER FUNCTIONS --------------
-
+// -------------- AUDIO FUNCTIONS --------------
 void playDanceMusic()
 {
-  if (!mp3_stopper) {
-    mp3_play(1); // play 0001.mp3
-    mp3_single_loop(true);
-    mp3_stopper = true;
-    delay(3000);
-  }
+    if (!mp3_stopper) {
+        mp3_play(1); // play 0001.mp3
+        mp3_single_loop(true);
+        mp3_stopper = true;
+        delay(3000);
+    }
 }
 
 void sayHi()
 {
-  mp3_play(2); //"EHI EHI VIENI QUI!!!
-  delay(3000);
+    mp3_play(2); //"EHI EHI VIENI QUI!!!
+    delay(3000);
 }
 
 void greetClient()
 {
-  mp3_play(3); //"(inchino) PIACERE DI CONOSCERTI, IO SONO CIN CIN"
-  delay(4000);
+    mp3_play(3); //"(inchino) PIACERE DI CONOSCERTI, IO SONO CIN CIN"
+    delay(4000);
 }
 
 void offerMenu()
 {
-  mp3_play(4); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
-  delay(4000);
+    mp3_play(4); //"VUOI GUARDARE IL MENU' DEL NOSTRO RISTORANTE? PRENDILO DAL MARSUPIO!"
+    delay(4000);
 }
 
 void sponsorMenu()
 {
-  mp3_play(5); //"HAI VISTO CHE PIATTI BUONI CHE ABBIAMO?"
-  delay(3000);
+    mp3_play(5); //"HAI VISTO CHE PIATTI BUONI CHE ABBIAMO?"
+    delay(3000);
 }
 
 void proposeSelfie()
 {
-  mp3_play(6); //"TI VA DI FARE UN SELFIE CON ME?"
-  delay(2000);
+    mp3_play(6); //"TI VA DI FARE UN SELFIE CON ME?"
+    delay(2000);
 }
 
 void gettingLaid()
 {
-  mp3_play(7); //"DAI METTITI IN POSA!"
-  delay(3000);
+    mp3_play(7); //"DAI METTITI IN POSA!"
+    delay(3000);
 }
 
 void cheese()
 {
-  mp3_play(8); //"3..2..1..FAI CHEESE!"
-  delay(5000);
+    mp3_play(8); //"3..2..1..FAI CHEESE!"
+    delay(5000);
 }
 
 void discount()
 {
-  mp3_play(9); //"SIAMO VENUTI BENISSIMO!"
-  delay(6000);
+    mp3_play(9); //"SIAMO VENUTI BENISSIMO!"
+    delay(6000);
 }
 
 void sayBye()
 {
-  mp3_play(10); //"E' STATO UN PIACERE CONOSCERTI!"
-  delay(4000);
+    mp3_play(10); //"E' STATO UN PIACERE CONOSCERTI!"
+    delay(4000);
 }
 
 void forgottenMenu()
 {
-  mp3_play(11); //"EHI NON SCAPPARE CON IL MENU'"
-  delay(2000);
+    mp3_play(11); //"EHI NON SCAPPARE CON IL MENU'"
+    delay(2000);
 }
 
 void sayHiChinese()
 {
-  mp3_play(13); //"EHI EHI QUE GOLA EH?"
-  delay(3000);
+    mp3_play(13); //"EHI EHI QUE GOLA EH?"
+    delay(3000);
 }
 
 void credits()
 {
-  mp3_play(14); //"TI SCATTERO' UNA FOTO..."
-  delay(32000);
+    mp3_play(14); //"TI SCATTERO' UNA FOTO..."
+    delay(32000);
 }
 
 void chack()
 {
-  mp3_play(15); //"CHACK!"
-  delay(2000);
+    mp3_play(15); //"CHACK!"
+    delay(2000);
+}
+
+
+// -------------- MOTOR FUNCTIONS --------------
+
+// typedef void(*MotorRetreatFunction)(void);  // at the moment arduino does not support function pointer
+bool motorMovement(Servo *motor, int start, int end, void(*goback)(void))
+{
+    for (int i = start; forloopEndingCond(i, start, end); forloopIncrement(&i, start, end)) {
+        motor->write(i);
+        if (abs(start - i) % 10 == 0) {
+            if (thereIsSomeone()) {
+                goback();
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool forloopEndingCond(int i, int start, int end)
+{
+    if (start > end) {
+        return i > end;
+    } 
+    return i < start;
+}
+
+void forloopIncrement(int *i, int start, int end)
+{
+    if (start > end) {
+        (*i)--;
+    } else {
+        (*i)++;
+    }
 }
 
 void goBackFromLeft()
 {
-  leftMotor.write(LEFT_REST_POSITION);
-  someone = true;
-  delay(400);
-  mp3_stop();
-  mp3_stopper = false;
+    leftMotor.write(LEFT_REST_POSITION);
+    someone = true;
+    delay(400);
+    mp3_stop();
+    mp3_stopper = false;
 }
 
 void goBackFromRight()
 {
-  rightMotor.write(RIGHT_REST_POSITION);
-  someone = true;
-  delay(400);
-  mp3_stop ();
-  mp3_stopper = false;
+    rightMotor.write(RIGHT_REST_POSITION);
+    someone = true;
+    delay(400);
+    mp3_stop ();
+    mp3_stopper = false;
 }
 
 void bow()
 {
-  for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++) {
-    bowMotor.write(i);
-    delay(7);
-  }
-  delay(1000);    // delay to let the motor reach the position
+    for (int i = BOW_REST_POSITION; i < BOW_STRETCHED_POSITION; i++) {
+        bowMotor.write(i);
+        delay(7);
+    }
+    delay(1000);        // delay to let the motor reach the position
 }
 
-void standup() {
-  for (int i = BOW_STRETCHED_POSITION; i > BOW_REST_POSITION; i--) {
-    bowMotor.write(i);
-    delay(7);
-  }
-  delay(1000);    // delay to let the motor reach the position
+void standup() 
+{
+    for (int i = BOW_STRETCHED_POSITION; i > BOW_REST_POSITION; i--) {
+        bowMotor.write(i);
+        delay(7);
+    }
+    delay(1000);        // delay to let the motor reach the position
 }
 
 void rotateForSelfie()
 {
-  for (int i = ROTATION_REST_POSITION; i < ROTATION_STRETCHED_POSITION; i++) {
-    rotationMotor.write(i);
-    delay(5);
-  }
+    for (int i = ROTATION_REST_POSITION; i < ROTATION_STRETCHED_POSITION; i++) {
+        rotationMotor.write(i);
+        delay(5);
+    }
 }
 
 void pullUpLeftArm()
 {
-  for (int i = LARM_REST_POSITION; i < LARM_STRETCHED_POSITION; i++) {
-    larmMotor.write(i);
-    delay(5);
-  }
+    for (int i = LARM_REST_POSITION; i < LARM_STRETCHED_POSITION; i++) {
+        larmMotor.write(i);
+        delay(5);
+    }
 }
 
 void pullUpLeftArmGesture()
 {
-  for (int i = LARM_REST_POSITION_G; i < LARM_STRETCHED_POSITION_G; i++) {
-    larmMotor.write(i);
-    delay(5);
-  }
+    for (int i = LARM_REST_POSITION_G; i < LARM_STRETCHED_POSITION_G; i++) {
+        larmMotor.write(i);
+        delay(5);
+    }
 }
 
 void pullDownLeftArm()
 {
-  for (int i = LARM_STRETCHED_POSITION; i > LARM_REST_POSITION; i--) {
-    larmMotor.write(i);
-    delay(5);
-  }
+    for (int i = LARM_STRETCHED_POSITION; i > LARM_REST_POSITION; i--) {
+        larmMotor.write(i);
+        delay(5);
+    }
 }
 
 void pullDownLeftArmGesture()
 {
-  for (int i = LARM_STRETCHED_POSITION_G; i > LARM_REST_POSITION_G; i--) {
-    larmMotor.write(i);
-    delay(5);
-  }
+    for (int i = LARM_STRETCHED_POSITION_G; i > LARM_REST_POSITION_G; i--) {
+        larmMotor.write(i);
+        delay(5);
+    }
 }
 
 void rotateBackFromSelfie()
 {
-  for (int i = ROTATION_STRETCHED_POSITION; i > ROTATION_REST_POSITION; i--) {
-    rotationMotor.write(i);
-    delay(5);
-  }
+    for (int i = ROTATION_STRETCHED_POSITION; i > ROTATION_REST_POSITION; i--) {
+        rotationMotor.write(i);
+        delay(5);
+    }
 }
 
 void doSelfie()
 {
-  rarmMotor.write(RARM_STRETCHED_POSITION);
-  delay(500);
-  pullUpLeftArm();
-  gettingLaid();
-  delay(3000);
-  cheese();
-  takePicture();
-  rarmMotor.write(RARM_REST_POSITION);
+    rarmMotor.write(RARM_STRETCHED_POSITION);
+    delay(500);
+    pullUpLeftArm();
+    gettingLaid();
+    delay(3000);
+    cheese();
+    takePicture();
+    rarmMotor.write(RARM_REST_POSITION);
 }
 
 
+void waitForMenu() 
+{
+    for (int k = 0; k < 199; k++) {
+        if (thereIsMenu()) return;
+        delay(100);
+    }
+
+    if (!thereIsMenu()) {
+        forgottenMenu();
+        delay(1000);
+    }
+        
+}
+
+void selfieSequenceActions()
+{
+    proposeSelfie();
+    rotateForSelfie();
+    doSelfie();
+    rotateBackFromSelfie();
+    discount();
+    engagement = TRUE;
+    switchOnWiFi();
+
+    if (clientEngaged()) {
+        sayBye();
+        hiddenFeature();
+        pullDownLeftArm();
+    }
+}
+
+void hiddenFeature()
+{
+    for (int z = 0; z < 40; z++) {
+        if (isTouched()) {
+            z = 40;
+            credits();
+        }
+        else {
+            delay(100);
+        }
+    }
+}
+
+
+// -------------- SENSOR FUNCTIONS --------------
 
 void updateDistances()
 {
-  distanceRight = sonarRight.ping_cm();
-  distanceRight = (distanceRight == 0 || distanceRight <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceRight;
+    distanceRight = sonarRight.ping_cm();
+    distanceRight = (distanceRight == 0 || distanceRight <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceRight;
 
-  distanceMiddle = sonarMiddle.ping_cm();
-  distanceMiddle = (distanceMiddle == 0 || distanceMiddle <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceMiddle;
+    distanceMiddle = sonarMiddle.ping_cm();
+    distanceMiddle = (distanceMiddle == 0 || distanceMiddle <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceMiddle;
 
-  distanceLeft = sonarLeft.ping_cm();
-  distanceLeft = (distanceLeft == 0 || distanceLeft <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceLeft;
+    distanceLeft = sonarLeft.ping_cm();
+    distanceLeft = (distanceLeft == 0 || distanceLeft <= SONAR_MINIMUM_THRESHOLD) ? MAX_DISTANCE : distanceLeft;
 
-  debug('R', distanceRight);
-  debug('M', distanceMiddle);
-  debug('L', distanceLeft);
+    debug('R', distanceRight);
+    debug('M', distanceMiddle);
+    debug('L', distanceLeft);
 }
 
 boolean isClose()
 {
-  return distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE;
+    return distanceRight < STOP_DISTANCE || distanceMiddle < STOP_DISTANCE || distanceLeft < STOP_DISTANCE;
 }
 
 boolean thereIsMenu()
 {
-  int analog_value = 0;
-  analog_value = analogRead(photoResistor);
-  if (analog_value > PHOTO_RESISTOR_THRESHOLD)
-    return false;
-  return true;
+    int analog_value = 0;
+    analog_value = analogRead(photoResistor);
+    if (analog_value > PHOTO_RESISTOR_THRESHOLD)
+        return false;
+    return true;
 }
 
 boolean isTouched()
 {
-  int touch_value = 0;
-  touch_value = digitalRead(TOUCH_SENSOR_PIN);
-  if (touch_value == HIGH)
-    return true;
-  return false;
+    int touch_value = 0;
+    touch_value = digitalRead(TOUCH_SENSOR_PIN);
+    if (touch_value == HIGH)
+        return true;
+    return false;
 }
 
 boolean thereIsSomeone()
 {
-  updateDistances();
+    updateDistances();
 
-  if (isClose()) {
-    someone = TRUE;
-  } else {
-    someone = FALSE;
-  }
-  return someone;
+    if (isClose()) {
+        someone = TRUE;
+    } else {
+        someone = FALSE;
+    }
+    return someone;
 }
 
 boolean clientEngaged()
 {
-  return engagement;
+    return engagement;
 }
+
+
+// -------------- CAMERA FUNCTIONS --------------
 
 void turnOnCamera()
 {
-  if (camState == OFF) {
-    digitalWrite(CAMERA_PIN, LOW);
-    delay(TURN_ON_DELAY);
-    digitalWrite(CAMERA_PIN, HIGH);
-    delay(5000);    // wait it turns on
-    camState = ON;
-  }
+    if (camState == OFF) {
+        digitalWrite(CAMERA_PIN, LOW);
+        delay(TURN_ON_DELAY);
+        digitalWrite(CAMERA_PIN, HIGH);
+        delay(5000);        // wait it turns on
+        camState = ON;
+    }
 }
 
 void turnOffCamera()
 {
-  if (camState == ON) {
-    digitalWrite(CAMERA_PIN, LOW);
-    delay(TURN_OFF_DELAY);
-    digitalWrite(CAMERA_PIN, HIGH);
+    if (camState == ON) {
+        digitalWrite(CAMERA_PIN, LOW);
+        delay(TURN_OFF_DELAY);
+        digitalWrite(CAMERA_PIN, HIGH);
 
-    camState = OFF;
-  }
+        camState = OFF;
+    }
 }
 
 
 void takePicture()
 {
-  if (camState == ON) {
-    switchToPictureStage();
-    digitalWrite(CAMERA_SHOT_PIN, HIGH);
-    delay(SHOOT_DELAY);
-    digitalWrite(CAMERA_SHOT_PIN, LOW);
-    delay(SHOOT_DELAY);
-    chack();
-  }
+    if (camState == ON) {
+        switchToPictureStage();
+        digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        delay(SHOOT_DELAY);
+        digitalWrite(CAMERA_SHOT_PIN, LOW);
+        delay(SHOOT_DELAY);
+        chack();
+    }
 }
 
 void switchToPictureStage()
 {
-  for (int i = 0; i < 2; i++) {
-    digitalWrite(CAMERA_PIN, LOW);
-    delay(SWITCH_STAGE_DELAY);
-    digitalWrite(CAMERA_PIN, HIGH);
-    delay(SWITCH_STAGE_DELAY);
-  }
+    for (int i = 0; i < 2; i++) {
+        digitalWrite(CAMERA_PIN, LOW);
+        delay(SWITCH_STAGE_DELAY);
+        digitalWrite(CAMERA_PIN, HIGH);
+        delay(SWITCH_STAGE_DELAY);
+    }
 }
 
 void switchOnWiFi()
 {
-  if (camState == ON && wifiState == OFF) {
-    digitalWrite(CAMERA_SHOT_PIN, HIGH);
-    delay(WIFI_ON_DELAY);
-    digitalWrite(CAMERA_SHOT_PIN, LOW);
+    if (camState == ON && wifiState == OFF) {
+        digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        delay(WIFI_ON_DELAY);
+        digitalWrite(CAMERA_SHOT_PIN, LOW);
 
-    wifiState = ON;
-  }
+        wifiState = ON;
+    }
 }
 
 void switchOffWiFi()
 {
-  if (camState == ON && wifiState == ON) {
-    digitalWrite(CAMERA_SHOT_PIN, HIGH);
-    delay(WIFI_OFF_DELAY);
-    digitalWrite(CAMERA_SHOT_PIN, LOW);
+    if (camState == ON && wifiState == ON) {
+        digitalWrite(CAMERA_SHOT_PIN, HIGH);
+        delay(WIFI_OFF_DELAY);
+        digitalWrite(CAMERA_SHOT_PIN, LOW);
 
-    wifiState = OFF;
-  }
+        wifiState = OFF;
+    }
 }
 
+
+// -------------- DEBUG FUNCTIONS --------------
 
 void debug(char description, long value)
 {
 #if DEBUG
-  char buff[10];
-  sprintf(buff, "%c%ld", description, value);
-  debug(buff);
+    char buff[10];
+    sprintf(buff, "%c%ld", description, value);
+    debug(buff);
 #endif
 }
 
 void debug(char *description, long value)
 {
 #if DEBUG
-  char buff[50];
-  sprintf(buff, "%s%ld", description, value);
-  debug(buff);
+    char buff[50];
+    sprintf(buff, "%s%ld", description, value);
+    debug(buff);
 #endif
 }
 
 void debug(char description, int value)
 {
 #if DEBUG
-  char buff[20];
-  sprintf(buff, "%c%d", description, value);
-  debug(buff);
+    char buff[20];
+    sprintf(buff, "%c%d", description, value);
+    debug(buff);
 #endif
 }
 
 void debug(char *description, int value)
 {
 #if DEBUG
-  char buff[50];
-  sprintf(buff, "%s%d", description, value);
-  debug(buff);
+    char buff[50];
+    sprintf(buff, "%s%d", description, value);
+    debug(buff);
 #endif
 }
 
 void debug(char *message)
 {
 #if DEBUG
-  Serial.println(message);
+    Serial.println(message);
 #endif
 }
-
