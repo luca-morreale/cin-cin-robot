@@ -193,7 +193,7 @@ void dangleOnce();
 void waitForMenu();
 void selfieSequenceActions();
 void hiddenFeature();
-
+void putBackMotors();
 
 void updateDistances();
 boolean isClose();
@@ -312,16 +312,16 @@ void cin_cin_dance() {
 
         playDanceMusic();
 
-        bool state = motorMovement(&leftMotor, LEFT_REST_POSITION, LEFT_STRETCHED_POSITION, &goBackFromLeft);
+        bool state = motorMovement(&rightMotor, RIGHT_REST_POSITION, RIGHT_STRETCHED_POSITION, &goBackFromRight);
+        if (state) return;
+
+        state = motorMovement(&rightMotor, RIGHT_STRETCHED_POSITION, RIGHT_REST_POSITION, &goBackFromRight);
+        if (state) return;
+
+        state = motorMovement(&leftMotor, LEFT_REST_POSITION, LEFT_STRETCHED_POSITION, &goBackFromLeft);
         if (state) return;
 
         state = motorMovement(&leftMotor, LEFT_STRETCHED_POSITION, LEFT_REST_POSITION, &goBackFromLeft);
-        if (state) return;
-
-        state = motorMovement(&leftMotor, RIGHT_REST_POSITION, RIGHT_STRETCHED_POSITION, &goBackFromRight);
-        if (state) return;
-
-        state = motorMovement(&leftMotor, RIGHT_STRETCHED_POSITION, RIGHT_REST_POSITION, &goBackFromRight);
         if (state) return;
     }
 }
@@ -333,6 +333,7 @@ void cin_cin_engagement()
     sayHiChinese();        // during presentation should rise the arm
     
     bow();
+    standup();
     
     switchOffWiFi();
 
@@ -691,6 +692,8 @@ void waitForMenu()
 
 void selfieSequenceActions()
 {
+    putBackMotors();
+    
     proposeSelfie();
     rotateForSelfie();
     doSelfie();     // inside pullUpLeftArm()
@@ -704,6 +707,16 @@ void selfieSequenceActions()
         hiddenFeature();
         pullDownLeftArm();
     }
+}
+
+void putBackMotors()
+{
+    leftMotor.write(LEFT_REST_POSITION);
+    rightMotor.write(RIGHT_REST_POSITION);
+    bowMotor.write(BOW_REST_POSITION);
+    rarmMotor.write(RARM_REST_POSITION);
+    larmMotor.write(LARM_REST_POSITION);
+    rotationMotor.write(ROTATION_REST_POSITION);
 }
 
 void hiddenFeature()
